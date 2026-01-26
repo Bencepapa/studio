@@ -12,47 +12,59 @@ class SymbolParticle {
   z: number;
   value: string;
 
+  initialX: number;
+  initialY: number;
+  timeOffset: number;
+  charChangeRate: number;
+  initialCharIndex: number;
+
   canvasWidth: number;
   canvasHeight: number;
-  speed: number;
   
-  constructor(canvasWidth: number, canvasHeight: number, speed: number) {
+  constructor(canvasWidth: number, canvasHeight: number) {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
-    this.speed = speed;
-    this.value = charset.charAt(Math.floor(Math.random() * charset.length));
-    this.z = randomRange(1, 1000);
-    this.x = randomRange(-this.canvasWidth, this.canvasWidth);
-    this.y = randomRange(-this.canvasHeight, this.canvasHeight);
+
+    this.initialX = randomRange(-canvasWidth * 5, canvasWidth * 5);
+    this.initialY = randomRange(-canvasHeight * 5, canvasHeight * 5);
+    this.timeOffset = randomRange(0, 100);
+    this.charChangeRate = randomRange(5, 15);
+    this.initialCharIndex = Math.floor(Math.random() * charset.length);
+
+    this.x = 0;
+    this.y = 0;
+    this.z = 0;
+    this.value = '';
   }
 
-  reset() {
-    this.z = 1000;
-    this.x = randomRange(-this.canvasWidth, this.canvasWidth);
-    this.y = randomRange(-this.canvasHeight, this.canvasHeight);
-    this.value = charset.charAt(Math.floor(Math.random() * charset.length));
-  }
+  update(time: number, deltaTime: number, settings: VFXSettings) {
+    const speed = settings.speed as number;
 
-  update(deltaTime: number) {
-    this.z -= this.speed * deltaTime * 5; // Reduced multiplier for more control via speed setting
-    if (this.z < 1) {
-      this.reset();
-    }
+    const cycleDuration = 1000 / (speed / 3);
+    const effectiveTime = time + this.timeOffset;
+    const timeInCycle = effectiveTime % cycleDuration;
+    
+    this.z = 1000 - (timeInCycle / cycleDuration) * 1000;
+
+    const charIndex = (this.initialCharIndex + Math.floor(effectiveTime * this.charChangeRate)) % charset.length;
+    this.value = charset.charAt(charIndex);
   }
 
   draw(ctx: CanvasRenderingContext2D, fov: number, hue: number) {
+    // Use initial positions for perspective calculation
     const scale = fov / (fov + this.z);
-    const sx = this.x * scale + this.canvasWidth / 2;
-    const sy = this.y * scale + this.canvasHeight / 2;
+    this.x = this.initialX * scale + this.canvasWidth / 2;
+    this.y = this.initialY * scale + this.canvasHeight / 2;
 
-    const opacity = mapRange(this.z, 0, 1000, 1, 0.1);
+    const opacity = mapRange(this.z, 0, 1000, 1, 0);
 
-    if (opacity <= 0.1 || scale <= 0) { // Culling
+    // Culling for performance
+    if (opacity <= 0 || scale <= 0 || this.x < 0 || this.x > this.canvasWidth || this.y < 0 || this.y > this.canvasHeight) {
       return;
     }
-
+    
     ctx.save();
-    ctx.translate(sx, sy);
+    ctx.translate(this.x, this.y);
     ctx.scale(scale, scale);
     
     ctx.fillStyle = `hsla(${hue}, 80%, 70%, ${opacity})`;
@@ -66,6 +78,8 @@ export class JackInEffect implements VFXEffect {
   private settings: VFXSettings = JackInEffect.defaultSettings;
   private canvas: HTMLCanvasElement | null = null;
   private fov = 300; // Constant FOV for consistent perspective
+  private width = 0;
+  private height = 0;
 
   static effectName = "Jack In";
   static defaultSettings: VFXSettings = {
@@ -76,19 +90,19 @@ export class JackInEffect implements VFXEffect {
 
   init(canvas: HTMLCanvasElement, settings: VFXSettings) {
     this.canvas = canvas;
+    const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
+    this.width = rect.width;
+    this.height = rect.height;
 
-    if (width === 0 || height === 0) return;
+    if (this.width === 0 || this.height === 0) return;
 
     this.settings = { ...JackInEffect.defaultSettings, ...settings };
     this.particles = [];
     const particleCount = this.settings.particleCount as number;
-    const speed = this.settings.speed as number;
-
+    
     for (let i = 0; i < particleCount; i++) {
-      this.particles.push(new SymbolParticle(width, height, speed));
+      this.particles.push(new SymbolParticle(this.width, this.height));
     }
   }
 
@@ -98,14 +112,7 @@ export class JackInEffect implements VFXEffect {
 
   update(time: number, deltaTime: number, settings: VFXSettings) {
     this.settings = { ...JackInEffect.defaultSettings, ...settings };
-    const speed = this.settings.speed as number;
-
-    this.particles.forEach(p => {
-        if(p.speed !== speed) {
-            p.speed = speed;
-        }
-        p.update(deltaTime);
-    });
+    this.particles.forEach(p => p.update(time, deltaTime, this.settings));
   }
 
   render(ctx: CanvasRenderingContext2D) {

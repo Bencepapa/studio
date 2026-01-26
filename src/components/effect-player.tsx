@@ -70,6 +70,20 @@ export function EffectPlayer({
 
   // Animation loop
   React.useEffect(() => {
+    const renderFrame = (currentTime: number, deltaTime = 0) => {
+       const ctx = canvasRef.current?.getContext("2d");
+       const effect = effectInstanceRef.current;
+       if (ctx && effect) {
+         const dpr = window.devicePixelRatio || 1;
+         ctx.save();
+         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+         ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
+         ctx.restore();
+         effect.update(currentTime, deltaTime, settings);
+         effect.render(ctx);
+       }
+    }
+
     const animate = (timestamp: number) => {
       if (lastTimeRef.current === 0) {
         lastTimeRef.current = timestamp;
@@ -77,28 +91,20 @@ export function EffectPlayer({
       const deltaTime = (timestamp - lastTimeRef.current) / 1000;
       lastTimeRef.current = timestamp;
 
-      const ctx = canvasRef.current?.getContext("2d");
-      const effect = effectInstanceRef.current;
-
-      if (ctx && effect) {
-        // Clear canvas
-        const dpr = window.devicePixelRatio || 1;
-        ctx.save();
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-        ctx.restore();
-
-        // Update time
-        let newTime = internalTimeRef.current + deltaTime * speed;
-        if (newTime > duration) newTime %= duration;
-        internalTimeRef.current = newTime;
-
-        // Propagate time update to parent
-        onTimeUpdate(newTime);
-        
-        effect.update(internalTimeRef.current, deltaTime * speed, settings);
-        effect.render(ctx);
+      // Update time
+      let newTime = internalTimeRef.current + deltaTime * speed;
+      if (newTime > duration) {
+        newTime %= duration;
+      } else if (newTime < 0) {
+        newTime = duration + (newTime % duration);
+        if (newTime === duration) newTime = 0;
       }
+      internalTimeRef.current = newTime;
+
+      // Propagate time update to parent
+      onTimeUpdate(newTime);
+      
+      renderFrame(internalTimeRef.current, deltaTime * speed);
 
       if (isPlaying) {
         animationFrameIdRef.current = requestAnimationFrame(animate);
@@ -109,18 +115,8 @@ export function EffectPlayer({
       lastTimeRef.current = 0; // Reset lastTime to avoid large deltaTime jump
       animationFrameIdRef.current = requestAnimationFrame(animate);
     } else {
-      // If paused, still render the current frame once
-      const ctx = canvasRef.current?.getContext("2d");
-      const effect = effectInstanceRef.current;
-       if (ctx && effect) {
-        const dpr = window.devicePixelRatio || 1;
-        ctx.save();
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-        ctx.restore();
-        effect.update(internalTimeRef.current, 0, settings);
-        effect.render(ctx);
-      }
+      // If paused, render the current frame based on the slider time
+      renderFrame(internalTimeRef.current);
     }
 
     return () => {

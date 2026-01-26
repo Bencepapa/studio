@@ -6,7 +6,6 @@ import {
   Play,
   Pause,
   Rewind,
-  FastForward,
   Settings2,
   FileText,
   Loader2,
@@ -107,6 +106,7 @@ export function ControlPanel({
       );
     }
     if (typeof value === "number") {
+      const isSpeed = key.toLowerCase().includes('speed');
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="capitalize text-xs">
@@ -114,9 +114,9 @@ export function ControlPanel({
           </Label>
           <Slider
             id={key}
-            min={0}
-            max={key.toLowerCase().includes('speed') ? 10 : 200}
-            step={0.1}
+            min={isSpeed ? -2 : 0}
+            max={isSpeed ? 10 : 200}
+            step={isSpeed ? 0.1 : 0.1}
             value={[value]}
             onValueChange={([v]) => onSettingsChange({ [key]: v })}
           />
@@ -195,8 +195,8 @@ export function ControlPanel({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => onSpeedChange(Math.max(0, speed - 0.25))}
-                aria-label="Decrease speed"
+                onClick={() => onTimeChange(0)}
+                aria-label="Rewind to start"
               >
                 <Rewind />
               </Button>
@@ -209,14 +209,6 @@ export function ControlPanel({
               >
                 {isPlaying ? <Pause /> : <Play />}
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onSpeedChange(speed + 0.25)}
-                aria-label="Increase speed"
-              >
-                <FastForward />
-              </Button>
             </div>
             <div className="space-y-2">
               <Label htmlFor="speed" className="text-xs">
@@ -224,7 +216,7 @@ export function ControlPanel({
               </Label>
               <Slider
                 id="speed"
-                min={0}
+                min={-2}
                 max={4}
                 step={0.1}
                 value={[speed]}

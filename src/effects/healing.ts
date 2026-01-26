@@ -4,49 +4,57 @@ import type { VFXEffect, VFXEffectClass, VFXSettings } from './types';
 class Particle {
   x: number;
   y: number;
-  z: number;
   life: number;
-  initialLife: number;
+  
+  // Initial state for deterministic calculation
+  initialX: number;
+  initialY: number;
+  cycleDuration: number;
+  timeOffset: number;
   vx: number;
-  vy: number;
-  vz: number;
+  baseVy: number;
   size: number;
+
   canvasWidth: number;
   canvasHeight: number;
 
-  constructor(canvasWidth: number, canvasHeight: number, speed: number) {
+  constructor(canvasWidth: number, canvasHeight: number) {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
-    this.x = randomRange(0, canvasWidth);
-    this.y = randomRange(canvasHeight * 0.8, canvasHeight * 1.2);
-    this.z = randomRange(0, 5);
-    this.initialLife = randomRange(2, 6);
-    this.life = this.initialLife;
-    this.vx = randomRange(-0.5, 0.5);
-    this.vy = randomRange(-1.5 * speed, -0.5 * speed);
-    this.vz = 0;
-    this.size = mapRange(this.z, 0, 5, 5, 20);
+    this.size = randomRange(5, 20);
+
+    // Set initial properties for deterministic playback
+    this.initialX = randomRange(0, canvasWidth);
+    this.initialY = randomRange(canvasHeight, canvasHeight * 1.2);
+    this.cycleDuration = randomRange(2, 6);
+    this.timeOffset = randomRange(0, this.cycleDuration);
+    this.vx = randomRange(-10, 10); // pixels per second
+    this.baseVy = randomRange(-150, -50); // pixels per second
+    
+    this.x = 0;
+    this.y = 0;
+    this.life = 0;
   }
 
-  update(deltaTime: number) {
-    this.life -= deltaTime;
+  update(time: number, deltaTime: number, settings: VFXSettings) {
+    const speed = settings.speed as number;
 
-    this.x += this.vx * deltaTime * 50;
-    this.y += this.vy * deltaTime * 50;
+    const effectiveTime = time + this.timeOffset;
+    const timeInCycle = effectiveTime % this.cycleDuration;
 
-    if (this.y < -this.size || this.life <= 0) {
-      this.reset();
-    }
-  }
-  
-  reset() {
-      this.x = randomRange(0, this.canvasWidth);
-      this.y = randomRange(this.canvasHeight, this.canvasHeight * 1.2);
-      this.life = this.initialLife;
+    this.life = this.cycleDuration - timeInCycle;
+    
+    this.x = this.initialX + this.vx * timeInCycle;
+    this.y = this.initialY + this.baseVy * speed * timeInCycle;
   }
 
   draw(ctx: CanvasRenderingContext2D, hue: number) {
-    const opacity = mapRange(this.life, 0, this.initialLife, 0, 0.7);
+    // Cull particles that are off-screen
+    if (this.y < -this.size || this.y > this.canvasHeight + this.size || this.x < -this.size || this.x > this.canvasWidth + this.size) {
+      return;
+    }
+
+    const opacity = mapRange(this.life, 0, this.cycleDuration, 0, 0.7);
     const size = mapRange(this.y, 0, this.canvasHeight, this.size, this.size * 0.2);
 
     ctx.save();
@@ -70,6 +78,8 @@ export class HealingEffect implements VFXEffect {
   private particles: Particle[] = [];
   private settings: VFXSettings = HealingEffect.defaultSettings;
   private canvas: HTMLCanvasElement | null = null;
+  private width = 0;
+  private height = 0;
   
   static effectName = "Healing Particles";
   static defaultSettings: VFXSettings = {
@@ -80,18 +90,18 @@ export class HealingEffect implements VFXEffect {
 
   init(canvas: HTMLCanvasElement, settings: VFXSettings) {
     this.canvas = canvas;
+    const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
+    this.width = rect.width;
+    this.height = rect.height;
     
-    if (width === 0 || height === 0) return;
+    if (this.width === 0 || this.height === 0) return;
 
     this.settings = { ...HealingEffect.defaultSettings, ...settings };
     this.particles = [];
     const particleCount = this.settings.particleCount as number;
-    const speed = this.settings.speed as number;
     for (let i = 0; i < particleCount; i++) {
-      this.particles.push(new Particle(width, height, speed));
+      this.particles.push(new Particle(this.width, this.height));
     }
   }
 
@@ -101,15 +111,7 @@ export class HealingEffect implements VFXEffect {
 
   update(time: number, deltaTime: number, settings: VFXSettings) {
     this.settings = { ...HealingEffect.defaultSettings, ...settings };
-    const speed = this.settings.speed as number;
-    
-    this.particles.forEach((p, i) => {
-      // Ensure particle properties are updated if settings change
-      if(p.vy > -0.5 * speed || p.vy < -1.5 * speed) {
-          p.vy = randomRange(-1.5 * speed, -0.5 * speed);
-      }
-      p.update(deltaTime);
-    });
+    this.particles.forEach(p => p.update(time, deltaTime, this.settings));
   }
 
   render(ctx: CanvasRenderingContext2D) {

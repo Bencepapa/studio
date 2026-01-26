@@ -32,13 +32,19 @@ class Column {
   fontSize: number;
   canvasHeight: number;
   totalSymbols: number;
+  initialY: number;
+  timeOffset: number;
 
   constructor(x: number, fontSize: number, canvasHeight: number) {
     this.x = x;
     this.fontSize = fontSize;
     this.canvasHeight = canvasHeight;
-    this.y = randomRange(-canvasHeight, 0);
-    this.totalSymbols = Math.ceil(canvasHeight / fontSize);
+    this.totalSymbols = Math.ceil(canvasHeight / fontSize) + 1;
+    
+    this.initialY = randomRange(-canvasHeight * 1.5, 0);
+    this.timeOffset = randomRange(0, 100);
+    this.y = this.initialY;
+
     this.createSymbols();
   }
 
@@ -50,13 +56,15 @@ class Column {
     }
   }
 
-  update(fallSpeed: number) {
-    this.y += fallSpeed;
-    if (this.y > this.canvasHeight) {
-        this.y = randomRange(-this.canvasHeight, 0);
-    }
+  update(time: number, deltaTime: number, settings: VFXSettings) {
+    const fallSpeed = settings.fallSpeed as number;
+    const effectiveTime = time + this.timeOffset;
     
-    // Randomly change symbols
+    const loopDistance = this.canvasHeight + this.totalSymbols * this.fontSize;
+    this.y = (this.initialY + effectiveTime * fallSpeed * 20) % loopDistance;
+    if(this.y < this.initialY) this.y += loopDistance; // ensure positive y
+    
+    // Randomly change symbols - this part is not fully deterministic on scrub for visual variety
     if (Math.random() > 0.98) {
       this.symbols.forEach(s => s.setRandomSymbol());
     }
@@ -66,11 +74,11 @@ class Column {
     this.symbols.forEach((symbol, index) => {
         const yPos = this.y + index * this.fontSize;
         if (yPos > 0 && yPos < this.canvasHeight) {
-            const greenHue = hue; // Neon Green
+            const greenHue = hue;
             const whiteHue = hue;
             const lightness = symbol.isFirst ? 95 : 70;
             const color = symbol.isFirst ? `hsl(${whiteHue}, 100%, ${lightness}%)` : `hsl(${greenHue}, 80%, ${lightness}%)`;
-            const alpha = mapRange(yPos, 0, this.canvasHeight, 1, 0.1);
+            const alpha = mapRange(index, 0, this.totalSymbols, 1, 0.1);
 
             ctx.fillStyle = color;
             ctx.globalAlpha = alpha;
@@ -85,6 +93,8 @@ export class MatrixEffect implements VFXEffect {
   private columns: Column[] = [];
   private settings: VFXSettings = MatrixEffect.defaultSettings;
   private canvas: HTMLCanvasElement | null = null;
+  private width = 0;
+  private height = 0;
   
   static effectName = "Cyber Matrix";
   static defaultSettings: VFXSettings = {
@@ -95,18 +105,19 @@ export class MatrixEffect implements VFXEffect {
 
   init(canvas: HTMLCanvasElement, settings: VFXSettings) {
     this.canvas = canvas;
+    const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
+    this.width = rect.width;
+    this.height = rect.height;
 
-    if (width === 0 || height === 0) return;
+    if (this.width === 0 || this.height === 0) return;
 
     this.settings = { ...MatrixEffect.defaultSettings, ...settings };
     this.columns = [];
     const fontSize = this.settings.fontSize as number;
-    const numberOfColumns = Math.ceil(width / fontSize);
+    const numberOfColumns = Math.ceil(this.width / fontSize);
     for (let i = 0; i < numberOfColumns; i++) {
-      this.columns.push(new Column(i * fontSize, fontSize, height));
+      this.columns.push(new Column(i * fontSize, fontSize, this.height));
     }
   }
 
@@ -116,15 +127,16 @@ export class MatrixEffect implements VFXEffect {
 
   update(time: number, deltaTime: number, settings: VFXSettings) {
      this.settings = { ...MatrixEffect.defaultSettings, ...settings };
-    const fallSpeed = (this.settings.fallSpeed as number) * (deltaTime * 60);
 
-    // Re-initialize if font size or canvas dimensions changed significantly
     const currentFontSize = this.settings.fontSize as number;
-    if (this.columns.length > 0 && this.columns[0].fontSize !== currentFontSize) {
+    const fontChanged = this.columns.length > 0 && this.columns[0].fontSize !== currentFontSize;
+    const sizeChanged = this.columns.length > 0 && this.columns[0].canvasHeight !== this.height;
+
+    if (fontChanged || sizeChanged) {
         this.init(this.canvas!, this.settings);
     }
 
-    this.columns.forEach(column => column.update(fallSpeed));
+    this.columns.forEach(column => column.update(time, deltaTime, this.settings));
   }
 
   render(ctx: CanvasRenderingContext2D) {
