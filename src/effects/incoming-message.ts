@@ -212,12 +212,15 @@ export class IncomingMessageEffect implements VFXEffect {
             ctx.fillText(sender as string, textX, headerY + 10);
             
             // Draw Subject
-            ctx.font = 'bold 16px "Space Grotesk", sans-serif';
+            ctx.font = '500 16px "Space Grotesk", sans-serif';
             ctx.fillStyle = `hsla(${hue}, 100%, 90%, ${contentOpacity})`;
-            ctx.fillText(subject as string, textX, headerY + 28);
+            const subjectMaxWidth = boxWidth - (textX - boxX) - 20;
+            const subjectY = headerY + 28;
+            const subjectLineHeight = 20;
+            const subjectEndY = this.wrapText(ctx, subject as string, textX, subjectY, subjectMaxWidth, subjectLineHeight);
             
             // Separator line
-            const lineY = headerY + 45;
+            const lineY = subjectEndY;
             ctx.strokeStyle = `hsla(${hue}, 100%, 70%, ${contentOpacity * 0.5})`;
             ctx.beginPath();
             ctx.moveTo(boxX + 15, lineY);
@@ -230,16 +233,38 @@ export class IncomingMessageEffect implements VFXEffect {
             const bodyMaxWidth = boxWidth - 40;
             ctx.font = '15px "Source Code Pro", monospace';
             ctx.fillStyle = `hsla(0, 0%, 90%, ${contentOpacity * 0.9})`;
-            const lastY = this.wrapText(ctx, body as string, bodyX, bodyY, bodyMaxWidth, 20);
+            this.wrapText(ctx, body as string, bodyX, bodyY, bodyMaxWidth, 20);
 
             // Cursor
             const cursorVisible = Math.floor(performance.now() / 500) % 2 === 0;
             if (cursorVisible && timeInCycle > contentAppearEnd && timeInCycle < holdEnd) {
-                const bodyLines = (body as string).split('\n');
-                const lastLine = bodyLines[bodyLines.length-1];
-                const lastLineWidth = ctx.measureText(lastLine).width;
-                const cursorX = bodyX + lastLineWidth + 5;
-                ctx.fillRect(cursorX, lastY - 18, 10, 16);
+                const textBlocks = (body as string).split('\n');
+                let totalLines = 0;
+                let lastBlockLastLine = '';
+                const lineHeight = 20;
+            
+                textBlocks.forEach(block => {
+                    const words = block.split(' ');
+                    let line = '';
+                    let lineCountInBlock = 1;
+                    for (const word of words) {
+                        const testLine = line + word + ' ';
+                        if (ctx.measureText(testLine).width > bodyMaxWidth && line.length > 0) {
+                            line = word + ' ';
+                            lineCountInBlock++;
+                        } else {
+                            line = testLine;
+                        }
+                    }
+                    lastBlockLastLine = line;
+                    totalLines += lineCountInBlock;
+                });
+            
+                const lastLineWidth = ctx.measureText(lastBlockLastLine.trimEnd()).width;
+                const cursorX = bodyX + lastLineWidth;
+                const cursorYPosition = bodyY + (totalLines - 1) * lineHeight;
+            
+                ctx.fillRect(cursorX, cursorYPosition - 14, 10, 16);
             }
 
             ctx.restore();
