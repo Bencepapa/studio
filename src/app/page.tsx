@@ -31,12 +31,14 @@ import { C64StartupEffect } from "@/effects/c64-startup";
 import { ArcadeStartupEffect } from "@/effects/arcade-startup";
 import { PCStartupEffect } from "@/effects/pc-startup";
 import { LinuxStartupEffect } from "@/effects/linux-startup";
+import { CPUTraceEffect } from "@/effects/cpu-trace";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const availableEffects: Record<string, VFXEffectClass> = {
+  "cpu-trace": CPUTraceEffect,
   "pc-startup": PCStartupEffect,
   "arcade-startup": ArcadeStartupEffect,
   "c64-startup": C64StartupEffect,
@@ -66,7 +68,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("pc-startup");
+  const [effectKey, setEffectKey] = React.useState<string>("cpu-trace");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);
