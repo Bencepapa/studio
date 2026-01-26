@@ -17,11 +17,16 @@ class CodeChar {
         this.char = codeCharset.charAt(Math.floor(Math.random() * codeCharset.length));
     }
 
-    draw(ctx: CanvasRenderingContext2D, time: number, settings: VFXSettings) {
+    draw(ctx: CanvasRenderingContext2D, time: number, settings: VFXSettings, scrollOffset: number) {
         if (time >= this.appearTime) {
             const hue = settings.hue as number;
+            const yPos = this.y - scrollOffset;
+
+            // Culling
+            if (yPos < -20 || yPos > ctx.canvas.height + 20) return;
+
             ctx.fillStyle = `hsla(${hue}, 80%, 70%, 1)`;
-            ctx.fillText(this.char, this.x, this.y);
+            ctx.fillText(this.char, this.x, yPos);
         }
     }
 }
@@ -105,6 +110,7 @@ export class CompilerEffect implements VFXEffect {
     private height = 0;
     private phase: string = 'writing';
     private currentTime = 0;
+    private scrollOffset = 0;
 
     // Phase durations
     private writingDuration = 3;
@@ -114,7 +120,6 @@ export class CompilerEffect implements VFXEffect {
 
     static effectName = "Compiler";
     static defaultSettings: VFXSettings = {
-        codeLineCount: 20,
         typingSpeed: 500, // characters per second
         compilingMessage: "Compiling...",
         doneMessage: "ACCESS GRANTED",
@@ -137,25 +142,25 @@ export class CompilerEffect implements VFXEffect {
         this.compilerBox = new CompilerBox(this.width, this.height);
         this.codeChars = [];
 
-        const typingSpeed = this.settings.typingSpeed as number; // chars per second
-        const codeLineCount = this.settings.codeLineCount as number;
+        const typingSpeed = this.settings.typingSpeed as number;
+        const totalCharsToGenerate = typingSpeed * this.writingDuration * 1.5; // Generate 50% more chars than needed for scrolling
         
         const charWidth = 9.6; // approx width for 16px monospace
         const lineHeight = 20;
 
         const charsPerLine = Math.floor((this.width * 0.8) / charWidth);
         const startX = this.width * 0.1;
-        const startY = (this.height - codeLineCount * lineHeight) / 2;
+        const startY = lineHeight;
+
+        const totalLines = Math.ceil(totalCharsToGenerate / charsPerLine);
 
         let charIndex = 0;
-        for (let i = 0; i < codeLineCount; i++) {
+        for (let i = 0; i < totalLines; i++) {
             for (let j = 0; j < charsPerLine; j++) {
+                if (charIndex > totalCharsToGenerate) break;
                 const x = startX + j * charWidth;
                 const y = startY + i * lineHeight;
                 const appearTime = charIndex / typingSpeed;
-                if (appearTime > this.writingDuration) {
-                    break;
-                }
                 this.codeChars.push(new CodeChar(x, y, appearTime));
                 charIndex++;
             }
@@ -171,7 +176,7 @@ export class CompilerEffect implements VFXEffect {
         if (!this.canvas) return;
         const rect = this.canvas.getBoundingClientRect();
         
-        const needsReinit = this.width !== rect.width || this.height !== rect.height || this.settings.codeLineCount !== settings.codeLineCount || this.settings.typingSpeed !== settings.typingSpeed;
+        const needsReinit = this.width !== rect.width || this.height !== rect.height || this.settings.typingSpeed !== settings.typingSpeed;
         this.settings = { ...CompilerEffect.defaultSettings, ...settings };
 
         if (needsReinit) {
@@ -191,19 +196,39 @@ export class CompilerEffect implements VFXEffect {
         if (timeInCycle < boxStartTime) {
             this.phase = 'writing';
             this.compilerBox!.opacity = 0;
-        } else if (timeInCycle < compileStartTime) {
-            this.phase = 'boxAppear';
-            const progress = (timeInCycle - boxStartTime) / this.boxAppearDuration;
-            this.compilerBox!.opacity = progress;
-        } else if (timeInCycle < doneStartTime) {
-            this.phase = 'compiling';
-            this.compilerBox!.opacity = 1;
-        } else if (timeInCycle < endTime) {
-            this.phase = 'done';
-            this.compilerBox!.opacity = 1;
+            
+            const lastTypedCharIndex = Math.floor(this.currentTime * (this.settings.typingSpeed as number));
+            if (lastTypedCharIndex < this.codeChars.length) {
+                const lastTypedChar = this.codeChars[lastTypedCharIndex];
+                const lastY = lastTypedChar.y;
+                const scrollThreshold = this.height * 0.7;
+                if (lastY > scrollThreshold) {
+                    this.scrollOffset = lastY - scrollThreshold;
+                } else {
+                    this.scrollOffset = 0;
+                }
+            } else {
+                 this.scrollOffset = 0;
+            }
+
         } else {
-            this.phase = 'end';
-            this.compilerBox!.opacity = 0;
+            this.phase = 'boxAppear';
+            this.compilerBox!.opacity = 1;
+            
+            if (timeInCycle < compileStartTime) {
+                this.phase = 'boxAppear';
+                const progress = (timeInCycle - boxStartTime) / this.boxAppearDuration;
+                this.compilerBox!.opacity = progress;
+            } else if (timeInCycle < doneStartTime) {
+                this.phase = 'compiling';
+                this.compilerBox!.opacity = 1;
+            } else if (timeInCycle < endTime) {
+                this.phase = 'done';
+                this.compilerBox!.opacity = 1;
+            } else {
+                this.phase = 'end';
+                this.compilerBox!.opacity = 0;
+            }
         }
     }
     
@@ -215,8 +240,12 @@ export class CompilerEffect implements VFXEffect {
         
         const { keepCharsOnTop } = this.settings;
 
+        const renderChars = () => {
+             this.codeChars.forEach(c => c.draw(ctx, this.currentTime, this.settings, this.scrollOffset));
+        }
+
         if (this.phase === 'writing' || keepCharsOnTop) {
-             this.codeChars.forEach(c => c.draw(ctx, this.currentTime, this.settings));
+             renderChars();
         }
        
         this.compilerBox.draw(ctx, this.currentTime, this.phase, this.settings);
