@@ -21,6 +21,7 @@ import { CompilerEffect } from "@/effects/compiler";
 import { LevelUpEffect } from "@/effects/levelup";
 import { RedAlertEffect } from "@/effects/red-alert";
 import { ScannerEffect } from "@/effects/scanner";
+import { RadarScannerEffect } from "@/effects/radar-scanner";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ const availableEffects: Record<string, VFXEffectClass> = {
   compiler: CompilerEffect,
   "red-alert": RedAlertEffect,
   scanner: ScannerEffect,
+  "radar-scanner": RadarScannerEffect,
 };
 
 const backgroundClasses: Record<string, string> = {

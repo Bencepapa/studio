@@ -16,6 +16,7 @@ const effectFileMap: { [key: string]: string } = {
   levelup: "levelup.ts",
   "red-alert": "red-alert.ts",
   scanner: "scanner.ts",
+  "radar-scanner": "radar-scanner.ts",
 };
 
 export async function generateDependenciesForEffect(effectKey: string) {
