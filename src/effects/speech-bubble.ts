@@ -10,12 +10,10 @@ export class SpeechBubbleEffect implements VFXEffect {
 
     static effectName = "Speech Bubble";
     static defaultSettings: VFXSettings = {
-        character: '!',
+        text: '!',
         targetX: 50, // Percentage
         targetY: 50, // Percentage
         hue: 0,
-        bubbleWidth: 60,
-        bubbleHeight: 60,
         cornerRadius: 20,
     };
 
@@ -45,22 +43,36 @@ export class SpeechBubbleEffect implements VFXEffect {
         if (!this.width || !this.height) return;
 
         const {
-            character,
+            text,
             targetX: targetXPercent,
             targetY: targetYPercent,
             hue,
-            bubbleWidth,
-            bubbleHeight,
             cornerRadius
         } = this.settings as {
-            character: string,
+            text: string,
             targetX: number,
             targetY: number,
             hue: number,
-            bubbleWidth: number,
-            bubbleHeight: number,
             cornerRadius: number
         };
+
+        // --- Calculate Bubble Size ---
+        const padding = 20;
+        const fontSize = 20;
+        const lineHeight = fontSize * 1.25;
+        ctx.font = `bold ${fontSize}px "Space Grotesk", sans-serif`;
+        
+        const lines = text.split('\n');
+        let maxLineWidth = 0;
+        lines.forEach(line => {
+            const lineWidth = ctx.measureText(line).width;
+            if (lineWidth > maxLineWidth) {
+                maxLineWidth = lineWidth;
+            }
+        });
+
+        const bubbleWidth = maxLineWidth + padding * 2;
+        const bubbleHeight = (lines.length * lineHeight) + padding * 2;
 
         const targetX = (targetXPercent / 100) * this.width;
         const targetY = (targetYPercent / 100) * this.height;
@@ -71,8 +83,8 @@ export class SpeechBubbleEffect implements VFXEffect {
         let bubbleY = targetY + bubbleYOffset;
         
         // Clamp bubble position to be within canvas bounds
-        bubbleX = Math.max(0, Math.min(bubbleX, this.width - bubbleWidth));
-        bubbleY = Math.max(0, Math.min(bubbleY, this.height - bubbleHeight - 20));
+        bubbleX = Math.max(10, Math.min(bubbleX, this.width - bubbleWidth - 10));
+        bubbleY = Math.max(10, Math.min(bubbleY, this.height - bubbleHeight - 20));
 
 
         const pointerBaseWidth = 20;
@@ -98,7 +110,10 @@ export class SpeechBubbleEffect implements VFXEffect {
         ctx.quadraticCurveTo(bubbleX + bubbleWidth, bubbleY + bubbleHeight, bubbleX + bubbleWidth - cornerRadius, bubbleY + bubbleHeight);
         
         // Bottom edge with pointer
-        const pointerCenterX = targetX;
+        let pointerCenterX = targetX;
+        // Clamp pointer horizontal position to be within the bubble's width boundaries
+        pointerCenterX = Math.max(bubbleX + cornerRadius + (pointerBaseWidth/2), Math.min(pointerCenterX, bubbleX + bubbleWidth - cornerRadius - (pointerBaseWidth/2)));
+
         ctx.lineTo(pointerCenterX + pointerBaseWidth / 2, bubbleY + bubbleHeight);
         ctx.lineTo(targetX, targetY); // Pointer tip
         ctx.lineTo(pointerCenterX - pointerBaseWidth / 2, bubbleY + bubbleHeight);
@@ -116,12 +131,16 @@ export class SpeechBubbleEffect implements VFXEffect {
         ctx.fill();
         ctx.stroke();
 
-        // --- Draw Character ---
+        // --- Draw Text ---
         ctx.fillStyle = `hsla(${hue}, 100%, 80%, 1)`;
-        ctx.font = `bold ${bubbleHeight * 0.6}px "Space Grotesk", sans-serif`;
+        ctx.font = `bold ${fontSize}px "Space Grotesk", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(character.charAt(0), bubbleX + bubbleWidth / 2, bubbleY + bubbleHeight / 2 + 3);
+
+        lines.forEach((line, index) => {
+             const yPos = bubbleY + padding + (lineHeight / 2) + (index * lineHeight);
+             ctx.fillText(line, bubbleX + bubbleWidth / 2, yPos);
+        });
         
         ctx.restore();
     }

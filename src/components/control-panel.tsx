@@ -144,7 +144,7 @@ export function ControlPanel({
       )
     }
 
-    if (key === 'body') {
+    if (key === 'body' || (effectKey === 'speech-bubble' && key === 'text')) {
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="capitalize text-xs">
@@ -155,7 +155,7 @@ export function ControlPanel({
             value={value}
             onChange={(e) => onSettingsChange({ [key]: e.target.value })}
             className="h-32 font-code text-xs"
-            placeholder="Enter message body..."
+            placeholder="Enter message..."
           />
         </div>
       );
