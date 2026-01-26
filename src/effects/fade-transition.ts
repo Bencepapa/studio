@@ -15,10 +15,10 @@ class FadeCell {
         this.width = width;
         this.height = height;
 
-        // Delay based on distance from top-left, gives a wipe effect
-        const maxDist = gridWidth + gridHeight;
-        const currentDist = (x / width) + (y / height);
-        this.delay = (currentDist / maxDist) * (totalDuration / 3);
+        // Use a seed based on grid position for deterministic randomness
+        const seed = (x / width) * gridWidth + (y / height);
+        // Random delay up to half the total transition time to ensure all cells can participate
+        this.delay = seededRandom(seed) * (totalDuration / 2);
     }
 
     draw(ctx: CanvasRenderingContext2D, time: number, totalDuration: number) {
