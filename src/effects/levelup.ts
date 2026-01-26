@@ -1,6 +1,75 @@
 import { mapRange } from './utils';
 import type { VFXEffect, VFXEffectClass, VFXSettings } from './types';
 
+const texturePatterns: Record<string, (size: number, color: string) => CanvasPattern | string> = {
+    'Solid': (_size, color) => color,
+    '45° Dashed': (_size, color) => {
+        const patternCanvas = document.createElement('canvas');
+        const patternCtx = patternCanvas.getContext('2d')!;
+        const patternSize = 20;
+        patternCanvas.width = patternSize;
+        patternCanvas.height = patternSize;
+        patternCtx.strokeStyle = color;
+        patternCtx.lineWidth = 2;
+        patternCtx.beginPath();
+        patternCtx.moveTo(0, patternSize);
+        patternCtx.lineTo(patternSize, 0);
+        patternCtx.stroke();
+        return patternCtx.createPattern(patternCanvas, 'repeat')!;
+    },
+    'Dots': (_size, color) => {
+        const patternCanvas = document.createElement('canvas');
+        const patternCtx = patternCanvas.getContext('2d')!;
+        const patternSize = 15;
+        patternCanvas.width = patternSize;
+        patternCanvas.height = patternSize;
+        patternCtx.fillStyle = color;
+        patternCtx.beginPath();
+        patternCtx.arc(patternSize / 2, patternSize / 2, 2.5, 0, Math.PI * 2);
+        patternCtx.fill();
+        return patternCtx.createPattern(patternCanvas, 'repeat')!;
+    },
+    'Hex Grid': (_size, color) => {
+        const patternCanvas = document.createElement('canvas');
+        const patternCtx = patternCanvas.getContext('2d')!;
+        const hexSize = 20;
+        patternCanvas.width = hexSize * 1.5;
+        patternCanvas.height = hexSize * Math.sqrt(3);
+        patternCtx.strokeStyle = color;
+        patternCtx.lineWidth = 1;
+
+        const drawHex = (x: number, y: number) => {
+            patternCtx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 180) * (60 * i + 30);
+                const x_i = x + hexSize/2 * Math.cos(angle);
+                const y_i = y + hexSize/2 * Math.sin(angle);
+                if (i === 0) patternCtx.moveTo(x_i, y_i);
+                else patternCtx.lineTo(x_i, y_i);
+            }
+            patternCtx.closePath();
+            patternCtx.stroke();
+        };
+
+        drawHex(hexSize * 0.75, hexSize * Math.sqrt(3) / 2);
+        
+        return patternCtx.createPattern(patternCanvas, 'repeat')!;
+    },
+    'Horizontal Lines': (_size, color) => {
+        const patternCanvas = document.createElement('canvas');
+        const patternCtx = patternCanvas.getContext('2d')!;
+        patternCanvas.width = 10;
+        patternCanvas.height = 10;
+        patternCtx.strokeStyle = color;
+        patternCtx.lineWidth = 2;
+        patternCtx.beginPath();
+        patternCtx.moveTo(0, 5);
+        patternCtx.lineTo(10, 5);
+        patternCtx.stroke();
+        return patternCtx.createPattern(patternCanvas, 'repeat')!;
+    }
+};
+
 export class LevelUpEffect implements VFXEffect {
     private settings: VFXSettings = LevelUpEffect.defaultSettings;
     private canvas: HTMLCanvasElement | null = null;
@@ -24,6 +93,8 @@ export class LevelUpEffect implements VFXEffect {
     private textY = 0;
     private textOpacity = 0;
 
+    private texturePattern: CanvasPattern | string | null = null;
+
 
     static effectName = "Level Up";
     static defaultSettings: VFXSettings = {
@@ -31,10 +102,25 @@ export class LevelUpEffect implements VFXEffect {
         hue: 50, // Yellow
         ribbonWidth: 400,
         ribbonHeight: 70,
+        ribbonTexture: 'Solid',
     };
 
     constructor() {
         this.totalDuration = this.ribbonFlyInDuration + this.holdDuration + this.flyOutDuration;
+    }
+
+    private updateTexture() {
+        const textureName = this.settings.ribbonTexture as string;
+        const hue = this.settings.hue as number;
+        const ribbonHeight = this.settings.ribbonHeight as number;
+
+        if (texturePatterns[textureName]) {
+            const color = `hsla(${hue}, 90%, 50%, 0.9)`;
+            const patternGenerator = texturePatterns[textureName];
+            this.texturePattern = patternGenerator(ribbonHeight, color);
+        } else {
+            this.texturePattern = `hsla(${hue}, 90%, 50%, 0.9)`;
+        }
     }
 
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
@@ -46,6 +132,7 @@ export class LevelUpEffect implements VFXEffect {
         if (this.width === 0 || this.height === 0) return;
 
         this.settings = { ...LevelUpEffect.defaultSettings, ...settings };
+        this.updateTexture();
     }
 
     destroy() {}
@@ -55,11 +142,17 @@ export class LevelUpEffect implements VFXEffect {
         const rect = this.canvas.getBoundingClientRect();
         const needsReinit = this.width !== rect.width || this.height !== rect.height;
 
+        const textureChanged = this.settings.ribbonTexture !== settings.ribbonTexture || this.settings.hue !== settings.hue;
+        
         this.settings = { ...LevelUpEffect.defaultSettings, ...settings };
 
         if (needsReinit) {
             this.init(this.canvas, this.settings);
             return;
+        }
+
+        if (textureChanged) {
+            this.updateTexture();
         }
 
         const timeInCycle = time % this.totalDuration;
@@ -142,7 +235,7 @@ export class LevelUpEffect implements VFXEffect {
 
         // Draw Ribbon
         if (this.ribbonOpacity > 0) {
-            ctx.fillStyle = `hsla(${hue}, 90%, 50%, ${this.ribbonOpacity * 0.9})`;
+            ctx.fillStyle = this.texturePattern || `hsla(${hue}, 90%, 50%, ${this.ribbonOpacity * 0.9})`;
             ctx.shadowColor = `hsla(${hue}, 90%, 50%, 0.5)`;
             ctx.shadowBlur = 20;
             ctx.fillRect(this.ribbonX, this.ribbonY, ribbonWidth, ribbonHeight);

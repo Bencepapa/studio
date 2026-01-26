@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -81,6 +80,15 @@ export function ControlPanel({
 }: ControlPanelProps) {
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [instructions, setInstructions] = React.useState<string | null>(null);
+  const [viewportWidth, setViewportWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    const setWidth = () => setViewportWidth(window.innerWidth);
+    setWidth();
+    window.addEventListener("resize", setWidth);
+    return () => window.removeEventListener("resize", setWidth);
+  }, []);
+
 
   const handleGenerateInstructions = async () => {
     setIsGenerating(true);
@@ -92,6 +100,28 @@ export function ControlPanel({
 
   const renderSettingControl = (key: string, value: any) => {
     const label = key.replace(/([A-Z])/g, " $1");
+
+    if (key === 'ribbonTexture' && effectKey === 'levelup') {
+      return (
+        <div key={key} className="space-y-2">
+          <Label htmlFor={key} className="capitalize text-xs">
+            Ribbon Texture
+          </Label>
+          <Select value={value} onValueChange={(v) => onSettingsChange({ [key]: v })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select texture" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Solid">Solid</SelectItem>
+              <SelectItem value="45° Dashed">45° Dashed</SelectItem>
+              <SelectItem value="Dots">Dots</SelectItem>
+              <SelectItem value="Hex Grid">Hex Grid</SelectItem>
+              <SelectItem value="Horizontal Lines">Horizontal Lines</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )
+    }
 
     if (typeof value === "boolean") {
       return (
@@ -160,14 +190,27 @@ export function ControlPanel({
     if (typeof value === "number") {
       const isSpeed = key.toLowerCase().includes('speed');
       const isCount = key.toLowerCase().includes('count');
+      const isRibbonWidth = key === 'ribbonWidth';
+
       const min = isSpeed ? -2 : 0;
-      const max = isCount ? 1000 : (isSpeed ? 10 : 200);
-      const step = isSpeed ? 0.1 : (isCount ? 1 : 0.1);
+      
+      let max;
+      if (isCount) {
+        max = 1000;
+      } else if (isSpeed) {
+        max = 10;
+      } else if (isRibbonWidth) {
+        max = viewportWidth;
+      } else {
+        max = 200;
+      }
+      
+      const step = isSpeed ? 0.1 : (isCount ? 1 : (isRibbonWidth ? 1 : 0.1));
       
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="capitalize text-xs">
-            {label} ({value.toFixed(isSpeed ? 2 : (isCount ? 0 : 1))})
+            {label} ({value.toFixed(isSpeed ? 2 : (isCount || isRibbonWidth ? 0 : 1))})
           </Label>
           <Slider
             id={key}
