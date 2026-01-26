@@ -21,7 +21,7 @@ export class C64StartupEffect implements VFXEffect {
     static defaultSettings: VFXSettings = {
         line1: 'ＶＦＸシステム', // VFX System
         line2: '６４ＫＢ ＲＡＭ － 準備完了', // 64KB RAM - READY
-        primaryHue: 195,
+        primaryHue: 230,
         backgroundHue: 230,
     };
 

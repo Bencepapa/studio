@@ -77,18 +77,31 @@ class BoardComponent {
 class CPUComponent extends BoardComponent {
     constructor(x: number, y: number, width: number, height: number, pinCountPerSide: number) {
         super(x, y, width, height);
+
+        if (pinCountPerSide < 2) {
+            // Handle case with 0 or 1 pin to avoid division by zero
+            if (pinCountPerSide === 1) {
+                const pinX = x + Math.floor(width / 2);
+                const pinY = y + Math.floor(height / 2);
+                this.pins.push(new Pin(pinX, y - 1));
+                this.pins.push(new Pin(pinX, y + height));
+                this.pins.push(new Pin(x - 1, pinY));
+                this.pins.push(new Pin(x + width, pinY));
+            }
+            return;
+        }
         
-        const pinSpacingX = width / (pinCountPerSide + 1);
-        const pinSpacingY = height / (pinCountPerSide + 1);
+        const pinSpacingX = (width > 1) ? (width - 1) / (pinCountPerSide - 1) : 0;
+        const pinSpacingY = (height > 1) ? (height - 1) / (pinCountPerSide - 1) : 0;
 
         // Top & Bottom pins
-        for (let i = 1; i <= pinCountPerSide; i++) {
+        for (let i = 0; i < pinCountPerSide; i++) {
             const pinX = x + Math.round(i * pinSpacingX);
             this.pins.push(new Pin(pinX, y - 1));
             this.pins.push(new Pin(pinX, y + height));
         }
         // Left & Right pins
-        for (let i = 1; i <= pinCountPerSide; i++) {
+        for (let i = 0; i < pinCountPerSide; i++) {
             const pinY = y + Math.round(i * pinSpacingY);
             this.pins.push(new Pin(x - 1, pinY));
             this.pins.push(new Pin(x + width, pinY));
@@ -100,17 +113,33 @@ class ICComponent extends BoardComponent {
     constructor(x: number, y: number, width: number, height: number, pinCountPerSide: number) {
         super(x, y, width, height);
 
+        if (pinCountPerSide < 2) {
+             // Handle case with 0 or 1 pin
+            if (pinCountPerSide === 1) {
+                if (height > width) { // vertical
+                    const pinY = y + Math.floor(height/2);
+                    this.pins.push(new Pin(x - 1, pinY));
+                    this.pins.push(new Pin(x + width, pinY));
+                } else { // horizontal
+                    const pinX = x + Math.floor(width/2);
+                    this.pins.push(new Pin(pinX, y - 1));
+                    this.pins.push(new Pin(pinX, y + height));
+                }
+            }
+            return;
+        }
+
         const isVertical = height > width;
         if (isVertical) {
-            const pinSpacing = height / (pinCountPerSide + 1);
-            for (let i = 1; i <= pinCountPerSide; i++) {
+            const pinSpacing = (height > 1) ? (height - 1) / (pinCountPerSide - 1) : 0;
+            for (let i = 0; i < pinCountPerSide; i++) {
                 const pinY = y + Math.round(i * pinSpacing);
                 this.pins.push(new Pin(x - 1, pinY));
                 this.pins.push(new Pin(x + width, pinY));
             }
         } else {
-            const pinSpacing = width / (pinCountPerSide + 1);
-            for (let i = 1; i <= pinCountPerSide; i++) {
+            const pinSpacing = (width > 1) ? (width - 1) / (pinCountPerSide - 1) : 0;
+            for (let i = 0; i < pinCountPerSide; i++) {
                 const pinX = x + Math.round(i * pinSpacing);
                 this.pins.push(new Pin(pinX, y - 1));
                 this.pins.push(new Pin(pinX, y + height));
@@ -214,6 +243,10 @@ export class CPUTraceEffect implements VFXEffect {
             }
             const currentNode = openList.splice(lowestFIndex, 1)[0];
             
+            if (currentNode.x < 0 || currentNode.x >= this.gridWidth || currentNode.y < 0 || currentNode.y >= this.gridHeight) {
+                continue;
+            }
+
             closedList[currentNode.x][currentNode.y] = true;
 
             if (currentNode.x === endNode.x && currentNode.y === endNode.y) {
@@ -330,7 +363,8 @@ export class CPUTraceEffect implements VFXEffect {
                 // check a slightly larger area to ensure spacing between components
                 for (let x = icX - 1; x < icX + icWidth + 1; x++) {
                     for (let y = icY - 1; y < icY + icHeight + 1; y++) {
-                        if (this.grid[x] && this.grid[x][y] === 1) {
+                         if (x < 0 || x >= this.gridWidth || y < 0 || y >= this.gridHeight) continue;
+                        if (this.grid[x][y] === 1) {
                             overlaps = true;
                             break;
                         }
