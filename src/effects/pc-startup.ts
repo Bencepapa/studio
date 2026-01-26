@@ -189,7 +189,7 @@ export class PCStartupEffect implements VFXEffect {
                  const cursorX = textX + ctx.measureText(textToDraw).width;
                  const cursorY = currentY - lineHeight - scrollOffset;
                  if (cursorY > this.height * 0.2) {
-                    ctx.fillRect(cursorX, cursorY, lineHeight * 0.6, lineHeight);
+                    ctx.fillRect(cursorX, cursorY + lineHeight - 4, lineHeight * 0.6, 3);
                  }
             }
         }
