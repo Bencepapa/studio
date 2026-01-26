@@ -10,6 +10,7 @@ import {
   Settings2,
   FileText,
   Loader2,
+  Layers,
 } from "lucide-react";
 import {
   SidebarHeader,
@@ -56,6 +57,8 @@ interface ControlPanelProps {
   duration: number;
   settings: VFXSettings;
   onSettingsChange: (settings: Partial<VFXSettings>) => void;
+  background: string;
+  onBackgroundChange: (background: string) => void;
 }
 
 export function ControlPanel({
@@ -71,6 +74,8 @@ export function ControlPanel({
   duration,
   settings,
   onSettingsChange,
+  background,
+  onBackgroundChange,
 }: ControlPanelProps) {
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [instructions, setInstructions] = React.useState<string | null>(null);
@@ -148,6 +153,25 @@ export function ControlPanel({
       <SidebarSeparator />
 
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>
+            <Layers />
+            <span>Background</span>
+          </SidebarGroupLabel>
+          <Select value={background} onValueChange={onBackgroundChange}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select a background" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Default</SelectItem>
+              <SelectItem value="checkerboard">Checkerboard</SelectItem>
+              <SelectItem value="light">Light</SelectItem>
+            </SelectContent>
+          </Select>
+        </SidebarGroup>
+        
+        <SidebarSeparator />
+
         <SidebarGroup>
           <SidebarGroupLabel>
             <Settings2 />

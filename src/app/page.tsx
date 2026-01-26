@@ -14,10 +14,17 @@ import { type VFXEffectClass, type VFXSettings } from "@/effects/types";
 import { MatrixEffect } from "@/effects/matrix";
 import { HealingEffect } from "@/effects/healing";
 import { LabLogo } from "@/components/icons";
+import { cn } from "@/lib/utils";
 
 const availableEffects: Record<string, VFXEffectClass> = {
   matrix: MatrixEffect,
   healing: HealingEffect,
+};
+
+const backgroundClasses: Record<string, string> = {
+  default: "bg-background",
+  checkerboard: "bg-checkerboard",
+  light: "bg-white",
 };
 
 export default function Home() {
@@ -27,6 +34,7 @@ export default function Home() {
   const [time, setTime] = React.useState<number>(0);
   const [duration] = React.useState<number>(30); // 30-second loop
   const [settings, setSettings] = React.useState<VFXSettings>({});
+  const [background, setBackground] = React.useState<string>("default");
 
   const CurrentEffect = availableEffects[effectKey];
 
@@ -64,6 +72,8 @@ export default function Home() {
           duration={duration}
           settings={currentSettings}
           onSettingsChange={handleSettingsChange}
+          background={background}
+          onBackgroundChange={setBackground}
         />
       </Sidebar>
       <SidebarInset className="flex flex-col !m-0 !rounded-none min-h-screen">
@@ -76,7 +86,7 @@ export default function Home() {
           </div>
           <SidebarTrigger />
         </header>
-        <main className="flex-1 relative bg-background overflow-hidden">
+        <main className={cn("flex-1 relative bg-background overflow-hidden", backgroundClasses[background])}>
           <EffectPlayer
             key={effectKey}
             effect={CurrentEffect}
