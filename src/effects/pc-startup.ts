@@ -133,17 +133,27 @@ export class PCStartupEffect implements VFXEffect {
 
         // Text color and font
         ctx.fillStyle = `hsl(${hue as number}, 70%, 60%)`;
-        ctx.font = `bold ${Math.min(this.width, this.height) / 40}px "Source Code Pro", monospace`;
+        const fontSize = Math.min(this.width, this.height) / 40;
+        ctx.font = `bold ${fontSize}px "Source Code Pro", monospace`;
         ctx.textBaseline = 'top';
         ctx.textAlign = 'left';
 
         // Draw Pixel Logo
-        this.drawPixelLogo(ctx, this.width * 0.05, this.height * 0.1, Math.min(this.width, this.height) / 100, hue as number);
+        const logoX = this.width * 0.05;
+        const logoY = this.height * 0.1;
+        const logoPixelSize = Math.min(this.width, this.height) / 100;
+        this.drawPixelLogo(ctx, logoX, logoY, logoPixelSize, hue as number);
+
+        // Draw Japanese text next to logo
+        ctx.font = `bold ${fontSize * 1.5}px "Source Code Pro", monospace`;
+        ctx.fillText('ＶＦＸ株式会社', logoX + logoPixelSize * 6, logoY); // VFX Corporation
+        ctx.font = `bold ${fontSize}px "Source Code Pro", monospace`;
+        ctx.fillText('先進技術研究所', logoX + logoPixelSize * 6, logoY + fontSize * 1.7); // Advanced Technology Laboratories
         
         // Draw Text
         const textX = this.width * 0.05;
         let currentY = this.height * 0.25;
-        const lineHeight = Math.min(this.width, this.height) / 40 * 1.5;
+        const lineHeight = fontSize * 1.5;
         const maxLines = Math.floor((this.height - currentY) / lineHeight) -1;
         let scrollOffset = 0;
 
