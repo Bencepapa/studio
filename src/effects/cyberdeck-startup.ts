@@ -339,6 +339,12 @@ export class CyberdeckStartupEffect implements VFXEffect {
             // Bar fill
             const pattern = this.getProgressBarPattern();
             if (pattern) {
+                // First, fill the progress area with a dim background color
+                // so the patterns are visible.
+                ctx.fillStyle = `hsla(${accentHue as number}, 80%, 30%, 0.5)`;
+                ctx.fillRect(barX, loadingY, barWidth * progress, fontSize);
+
+                // Then, draw the actual pattern over it.
                 ctx.fillStyle = pattern;
                 ctx.fillRect(barX, loadingY, barWidth * progress, fontSize);
             }
