@@ -156,28 +156,31 @@ export class CyberdeckStartupEffect implements VFXEffect {
     private getProgressBarPattern(): CanvasPattern | string | null {
         const { progressBarPattern, accentHue } = this.settings;
         const patternName = progressBarPattern as string;
-        const color = `hsla(${accentHue as number}, 80%, 70%, 0.8)`;
+        
+        const patternColor = `hsla(${accentHue as number}, 80%, 70%, 0.8)`;
 
         if (patternName === 'Solid') {
-            return color;
+            return patternColor;
         }
 
         const cacheKey = `${patternName}-${accentHue}`;
         if (this.patternCache.has(cacheKey)) {
             return this.patternCache.get(cacheKey)!;
         }
+        
+        const backgroundColor = `hsla(${accentHue as number}, 80%, 30%, 0.8)`;
 
         const pCanvas = document.createElement('canvas');
         const pCtx = pCanvas.getContext('2d')!;
         let pattern: CanvasPattern | null = null;
-        
-        pCtx.fillStyle = color;
-        pCtx.strokeStyle = color;
 
         switch (patternName) {
             case 'Dashed 45': {
                 pCanvas.width = 20;
                 pCanvas.height = 20;
+                pCtx.fillStyle = backgroundColor;
+                pCtx.fillRect(0, 0, pCanvas.width, pCanvas.height);
+                pCtx.strokeStyle = patternColor;
                 pCtx.lineWidth = 4;
                 pCtx.beginPath();
                 pCtx.moveTo(0, 20);
@@ -189,6 +192,9 @@ export class CyberdeckStartupEffect implements VFXEffect {
             case 'Blocks': {
                 pCanvas.width = 16;
                 pCanvas.height = 16;
+                pCtx.fillStyle = backgroundColor;
+                pCtx.fillRect(0, 0, pCanvas.width, pCanvas.height);
+                pCtx.fillStyle = patternColor;
                 pCtx.fillRect(0, 0, 8, 8);
                 pCtx.fillRect(8, 8, 8, 8);
                 pattern = pCtx.createPattern(pCanvas, 'repeat');
@@ -197,6 +203,9 @@ export class CyberdeckStartupEffect implements VFXEffect {
             case 'Horizontal Lines': {
                 pCanvas.width = 1;
                 pCanvas.height = 8;
+                pCtx.fillStyle = backgroundColor;
+                pCtx.fillRect(0, 0, pCanvas.width, pCanvas.height);
+                pCtx.fillStyle = patternColor;
                 pCtx.fillRect(0, 0, 1, 4);
                 pattern = pCtx.createPattern(pCanvas, 'repeat');
                 break;
@@ -339,12 +348,6 @@ export class CyberdeckStartupEffect implements VFXEffect {
             // Bar fill
             const pattern = this.getProgressBarPattern();
             if (pattern) {
-                // First, fill the progress area with a dim background color
-                // so the patterns are visible.
-                ctx.fillStyle = `hsla(${accentHue as number}, 80%, 30%, 0.5)`;
-                ctx.fillRect(barX, loadingY, barWidth * progress, fontSize);
-
-                // Then, draw the actual pattern over it.
                 ctx.fillStyle = pattern;
                 ctx.fillRect(barX, loadingY, barWidth * progress, fontSize);
             }
@@ -382,3 +385,5 @@ export class CyberdeckStartupEffect implements VFXEffect {
         return this.settings;
     }
 }
+
+    
