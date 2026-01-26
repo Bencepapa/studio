@@ -9,6 +9,7 @@ const effectFileMap: { [key: string]: string } = {
   "pc-startup": "pc-startup.ts",
   "arcade-startup": "arcade-startup.ts",
   "c64-startup": "c64-startup.ts",
+  "linux-startup": "linux-startup.ts",
   "jack-in": "jack-in.ts",
   matrix: "matrix.ts",
   healing: "healing.ts",

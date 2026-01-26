@@ -30,6 +30,7 @@ import { RibbonTransitionEffect } from "@/effects/ribbon-transition";
 import { C64StartupEffect } from "@/effects/c64-startup";
 import { ArcadeStartupEffect } from "@/effects/arcade-startup";
 import { PCStartupEffect } from "@/effects/pc-startup";
+import { LinuxStartupEffect } from "@/effects/linux-startup";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ const availableEffects: Record<string, VFXEffectClass> = {
   "pc-startup": PCStartupEffect,
   "arcade-startup": ArcadeStartupEffect,
   "c64-startup": C64StartupEffect,
+  "linux-startup": LinuxStartupEffect,
   levelup: LevelUpEffect,
   "ribbon-transition": RibbonTransitionEffect,
   "fade-transition": FadeTransitionEffect,
