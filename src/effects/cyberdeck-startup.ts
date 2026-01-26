@@ -168,7 +168,7 @@ export class CyberdeckStartupEffect implements VFXEffect {
             return this.patternCache.get(cacheKey)!;
         }
         
-        const backgroundColor = `hsla(${accentHue as number}, 80%, 30%, 0.8)`;
+        const backgroundColor = '#000'; //`hsla(${accentHue as number}, 80%, 30%, 0.8)`;
 
         const pCanvas = document.createElement('canvas');
         const pCtx = pCanvas.getContext('2d')!;
@@ -178,13 +178,27 @@ export class CyberdeckStartupEffect implements VFXEffect {
             case 'Dashed 45': {
                 pCanvas.width = 20;
                 pCanvas.height = 20;
-                pCtx.fillStyle = backgroundColor;
+                pCtx.fillStyle = patternColor; //backgroundColor;
                 pCtx.fillRect(0, 0, pCanvas.width, pCanvas.height);
-                pCtx.strokeStyle = patternColor;
-                pCtx.lineWidth = 4;
+                pCtx.strokeStyle = backgroundColor; //patternColor;
+                pCtx.lineWidth = 3;
                 pCtx.beginPath();
                 pCtx.moveTo(0, 20);
                 pCtx.lineTo(20, 0);
+                pCtx.stroke();
+                pattern = pCtx.createPattern(pCanvas, 'repeat');
+                break;
+            }
+            case 'Dashed 30': {
+                pCanvas.width = 35;
+                pCanvas.height = 20;
+                pCtx.fillStyle = patternColor; //backgroundColor;
+                pCtx.fillRect(0, 0, pCanvas.width, pCanvas.height);
+                pCtx.strokeStyle = backgroundColor; //patternColor;
+                pCtx.lineWidth = 3;
+                pCtx.beginPath();
+                pCtx.moveTo(0, 20);
+                pCtx.lineTo(35, 0);
                 pCtx.stroke();
                 pattern = pCtx.createPattern(pCanvas, 'repeat');
                 break;
@@ -195,18 +209,18 @@ export class CyberdeckStartupEffect implements VFXEffect {
                 pCtx.fillStyle = backgroundColor;
                 pCtx.fillRect(0, 0, pCanvas.width, pCanvas.height);
                 pCtx.fillStyle = patternColor;
-                pCtx.fillRect(0, 0, 8, 8);
-                pCtx.fillRect(8, 8, 8, 8);
+                pCtx.fillRect(0, 0, 14, 16);
+//                pCtx.fillRect(8, 8, 8, 8);
                 pattern = pCtx.createPattern(pCanvas, 'repeat');
                 break;
             }
             case 'Horizontal Lines': {
                 pCanvas.width = 1;
-                pCanvas.height = 8;
+                pCanvas.height = 4;
                 pCtx.fillStyle = backgroundColor;
                 pCtx.fillRect(0, 0, pCanvas.width, pCanvas.height);
                 pCtx.fillStyle = patternColor;
-                pCtx.fillRect(0, 0, 1, 4);
+                pCtx.fillRect(0, 0, 1, 2);
                 pattern = pCtx.createPattern(pCanvas, 'repeat');
                 break;
             }

@@ -116,6 +116,7 @@ export function ControlPanel({
             <SelectContent>
               <SelectItem value="Solid">Solid</SelectItem>
               <SelectItem value="Dashed 45">45° Dashed</SelectItem>
+              <SelectItem value="Dashed 30">30° Dashed</SelectItem>
               <SelectItem value="Blocks">Blocks</SelectItem>
               <SelectItem value="Horizontal Lines">Horizontal Lines</SelectItem>
             </SelectContent>
