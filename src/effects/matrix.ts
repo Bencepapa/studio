@@ -95,12 +95,18 @@ export class MatrixEffect implements VFXEffect {
 
   init(canvas: HTMLCanvasElement, settings: VFXSettings) {
     this.canvas = canvas;
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    if (width === 0 || height === 0) return;
+
     this.settings = { ...MatrixEffect.defaultSettings, ...settings };
     this.columns = [];
     const fontSize = this.settings.fontSize as number;
-    const numberOfColumns = Math.ceil(canvas.width / fontSize);
+    const numberOfColumns = Math.ceil(width / fontSize);
     for (let i = 0; i < numberOfColumns; i++) {
-      this.columns.push(new Column(i * fontSize, fontSize, canvas.height));
+      this.columns.push(new Column(i * fontSize, fontSize, height));
     }
   }
 

@@ -80,12 +80,18 @@ export class HealingEffect implements VFXEffect {
 
   init(canvas: HTMLCanvasElement, settings: VFXSettings) {
     this.canvas = canvas;
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    
+    if (width === 0 || height === 0) return;
+
     this.settings = { ...HealingEffect.defaultSettings, ...settings };
     this.particles = [];
     const particleCount = this.settings.particleCount as number;
     const speed = this.settings.speed as number;
     for (let i = 0; i < particleCount; i++) {
-      this.particles.push(new Particle(canvas.width, canvas.height, speed));
+      this.particles.push(new Particle(width, height, speed));
     }
   }
 
