@@ -3,6 +3,8 @@ import { seededRandom, mapRange } from './utils';
 import type { VFXEffect, VFXEffectClass, VFXSettings } from './types';
 
 const GRID_CELL_SIZE = 10;
+const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+
 
 // --- Helper classes for Pathfinding ---
 class PathNode {
@@ -77,23 +79,25 @@ class BoardComponent {
 }
 
 class CPUComponent extends BoardComponent {
+    glyph: string;
+
     constructor(x: number, y: number, width: number, height: number, pinCountPerSide: number) {
         super(x, y, width, height);
+        this.glyph = katakana.charAt(Math.floor(seededRandom(x + y) * katakana.length));
 
         if (pinCountPerSide < 1) return;
 
-        const pinSpacingX = (width > 1) ? (width - 1) / (Math.max(1, pinCountPerSide - 1)) : 0;
-        const pinSpacingY = (height > 1) ? (height - 1) / (Math.max(1, pinCountPerSide - 1)) : 0;
+        const pinSpacingX = width / (pinCountPerSide -1);
+        const pinSpacingY = height / (pinCountPerSide - 1);
 
         for (let i = 0; i < pinCountPerSide; i++) {
             const pinX = x + Math.round(i * pinSpacingX);
             const pinY = y + Math.round(i * pinSpacingY);
+
+             // Top & Bottom pins
+             this.pins.push(new Pin(pinX, y - 1, 'n'));
+             this.pins.push(new Pin(pinX, y + height, 's'));
             
-            // Top & Bottom pins
-            if (i < pinCountPerSide) {
-                this.pins.push(new Pin(pinX, y - 1, 'n'));
-                this.pins.push(new Pin(pinX, y + height, 's'));
-            }
              // Left & Right pins (avoiding corners)
             if (i > 0 && i < pinCountPerSide -1) {
                 this.pins.push(new Pin(x - 1, pinY, 'w'));
@@ -101,10 +105,34 @@ class CPUComponent extends BoardComponent {
             }
         }
     }
+    
+    draw(ctx: CanvasRenderingContext2D, settings: VFXSettings) {
+        super.draw(ctx, settings);
+        
+        const { hue } = settings;
+        const px = this.x * GRID_CELL_SIZE;
+        const py = this.y * GRID_CELL_SIZE;
+        const pw = this.width * GRID_CELL_SIZE;
+        const ph = this.height * GRID_CELL_SIZE;
+        
+        const glyphSize = Math.min(pw, ph) * 0.7;
+        ctx.font = `bold ${glyphSize}px "Source Code Pro", monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Emboss effect
+        ctx.fillStyle = `hsl(${hue}, 80%, 30%)`; // Darker shadow
+        ctx.fillText(this.glyph, px + pw / 2 + 2, py + ph / 2 + 2);
+
+        ctx.fillStyle = `hsl(${hue}, 80%, 50%)`; // Main color
+        ctx.fillText(this.glyph, px + pw / 2, py + ph / 2);
+    }
 }
 
 class ICComponent extends BoardComponent {
-     constructor(x: number, y: number, width: number, height: number, pinCountPerSide: number) {
+    pixelArt: string | null = null;
+    
+    constructor(x: number, y: number, width: number, height: number, pinCountPerSide: number) {
         super(x, y, width, height);
         
         if (pinCountPerSide < 1) return;
@@ -112,18 +140,51 @@ class ICComponent extends BoardComponent {
         const isVertical = height > width;
 
         if (isVertical) {
-            const pinSpacing = (height > 1) ? (height - 1) / (Math.max(1, pinCountPerSide - 1)) : 0;
+            const pinSpacing = height / (pinCountPerSide - 1);
             for (let i = 0; i < pinCountPerSide; i++) {
-                const pinY = y + Math.round(i * pinSpacing);
-                this.pins.push(new Pin(x - 1, pinY, 'w'));
-                this.pins.push(new Pin(x + width, pinY, 'e'));
+                const pinY = y + (i * pinSpacing);
+                this.pins.push(new Pin(x - 1, Math.round(pinY), 'w'));
+                this.pins.push(new Pin(x + width, Math.round(pinY), 'e'));
             }
         } else {
-            const pinSpacing = (width > 1) ? (width - 1) / (Math.max(1, pinCountPerSide - 1)) : 0;
+            const pinSpacing = width / (pinCountPerSide - 1);
             for (let i = 0; i < pinCountPerSide; i++) {
-                const pinX = x + Math.round(i * pinSpacing);
-                this.pins.push(new Pin(pinX, y - 1, 'n'));
-                this.pins.push(new Pin(pinX, y + height, 's'));
+                const pinX = x + (i * pinSpacing);
+                this.pins.push(new Pin(Math.round(pinX), y - 1, 'n'));
+                this.pins.push(new Pin(Math.round(pinX), y + height, 's'));
+            }
+        }
+        
+        if (width >= 5 && height >= 5) {
+            let art = '';
+            for (let i = 0; i < 25; i++) {
+                art += seededRandom(x + y + i) > 0.5 ? '1' : '0';
+            }
+            this.pixelArt = art;
+        }
+    }
+    
+    draw(ctx: CanvasRenderingContext2D, settings: VFXSettings) {
+        super.draw(ctx, settings);
+
+        if (this.pixelArt) {
+            const { hue } = settings;
+            const px = this.x * GRID_CELL_SIZE;
+            const py = this.y * GRID_CELL_SIZE;
+            const pw = this.width * GRID_CELL_SIZE;
+            const ph = this.height * GRID_CELL_SIZE;
+        
+            const pixelSize = Math.min(pw, ph) / 8;
+            const startX = px + (pw - pixelSize * 5) / 2;
+            const startY = py + (ph - pixelSize * 5) / 2;
+            ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
+
+            for (let i = 0; i < 25; i++) {
+                if (this.pixelArt[i] === '1') {
+                    const drawX = startX + (i % 5) * pixelSize;
+                    const drawY = startY + Math.floor(i / 5) * pixelSize;
+                    ctx.fillRect(drawX, drawY, pixelSize, pixelSize);
+                }
             }
         }
     }
@@ -209,23 +270,22 @@ export class CPUTraceEffect implements VFXEffect {
     // A* pathfinding algorithm
     private aStar(startPin: Pin, endPin: Pin): { x: number, y: number }[] | null {
 
-        const getPathfindingEndpoint = (pin: Pin) => {
+        const getPathfindingEndpoint = (pin: Pin, gridWidth: number, gridHeight: number) => {
+            let x = pin.x, y = pin.y;
             switch (pin.direction) {
-                case 'n': return { x: pin.x, y: pin.y - 1 };
-                case 's': return { x: pin.x, y: pin.y + 1 };
-                case 'w': return { x: pin.x - 1, y: pin.y };
-                case 'e': return { x: pin.x + 1, y: pin.y };
+                case 'n': y -= 1; break;
+                case 's': y += 1; break;
+                case 'w': x -= 1; break;
+                case 'e': x += 1; break;
             }
+            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight) return null;
+            return { x, y };
         };
 
-        const startPos = getPathfindingEndpoint(startPin);
-        const endPos = getPathfindingEndpoint(endPin);
-
-        // Boundary checks for endpoints
-        if (startPos.x < 0 || startPos.x >= this.gridWidth || startPos.y < 0 || startPos.y >= this.gridHeight ||
-            endPos.x < 0 || endPos.x >= this.gridWidth || endPos.y < 0 || endPos.y >= this.gridHeight) {
-            return null;
-        }
+        const startPos = getPathfindingEndpoint(startPin, this.gridWidth, this.gridHeight);
+        const endPos = getPathfindingEndpoint(endPin, this.gridWidth, this.gridHeight);
+        
+        if (!startPos || !endPos) return null;
 
         const openList: PathNode[] = [];
         const closedList: boolean[][] = Array(this.gridWidth).fill(false).map(() => Array(this.gridHeight).fill(false));
@@ -288,22 +348,18 @@ export class CPUTraceEffect implements VFXEffect {
                 }
                 
                 const gScore = currentNode.g + neighbor.cost;
-                let gScoreIsBest = false;
                 
                 const existingNode = openList.find(n => n.x === neighborPos.x && n.y === neighborPos.y);
 
                 if (!existingNode) {
-                    gScoreIsBest = true;
                     const neighborNode = new PathNode(neighborPos.x, neighborPos.y);
                     neighborNode.h = Math.abs(neighborPos.x - endNode.x) + Math.abs(neighborPos.y - endNode.y);
-                    openList.push(neighborNode);
-
                     neighborNode.parent = currentNode;
                     neighborNode.g = gScore;
                     neighborNode.f = neighborNode.g + neighborNode.h;
+                    openList.push(neighborNode);
 
                 } else if (gScore < existingNode.g) {
-                    gScoreIsBest = true;
                     existingNode.parent = currentNode;
                     existingNode.g = gScore;
                     existingNode.f = existingNode.g + existingNode.h;
@@ -425,7 +481,7 @@ export class CPUTraceEffect implements VFXEffect {
                     this.traces.push(new Trace(path, this.totalDuration, i));
                     // Mark path as obstacle for next trace
                     path.forEach(p => {
-                        if (traceGrid[p.x] && traceGrid[p.x][p.y] === 0) { // Don't overwrite components
+                        if (traceGrid[p.x] && traceGrid[p.x][p.y] !== undefined && traceGrid[p.x][p.y] === 0) { // Don't overwrite components
                             traceGrid[p.x][p.y] = 1;
                         }
                     });
