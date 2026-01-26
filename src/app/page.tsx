@@ -29,12 +29,14 @@ import { FadeTransitionEffect } from "@/effects/fade-transition";
 import { RibbonTransitionEffect } from "@/effects/ribbon-transition";
 import { C64StartupEffect } from "@/effects/c64-startup";
 import { ArcadeStartupEffect } from "@/effects/arcade-startup";
+import { PCStartupEffect } from "@/effects/pc-startup";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const availableEffects: Record<string, VFXEffectClass> = {
+  "pc-startup": PCStartupEffect,
   "arcade-startup": ArcadeStartupEffect,
   "c64-startup": C64StartupEffect,
   levelup: LevelUpEffect,
@@ -62,7 +64,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("arcade-startup");
+  const [effectKey, setEffectKey] = React.useState<string>("pc-startup");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);

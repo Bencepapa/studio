@@ -29,9 +29,9 @@ export class ArcadeStartupEffect implements VFXEffect {
 
     static effectName = "Arcade Startup";
     static defaultSettings: VFXSettings = {
-        gridColor: 'hsl(180, 100%, 30%)',
+        hue: 180, // cyan for grid
+        textHue: 50, // yellow for text
         backgroundColor: 'hsl(0, 0%, 5%)',
-        textColor: 'hsl(50, 100%, 60%)',
         scanlineOpacity: 0.1,
         gridSize: 30,
     };
@@ -41,7 +41,7 @@ export class ArcadeStartupEffect implements VFXEffect {
     }
 
     private createGridPattern() {
-        if (!this.settings.gridColor || !this.settings.gridSize) return;
+        if (!this.settings.gridSize) return;
 
         const patternCanvas = document.createElement('canvas');
         const patternCtx = patternCanvas.getContext('2d')!;
@@ -49,7 +49,8 @@ export class ArcadeStartupEffect implements VFXEffect {
         patternCanvas.width = gridSize;
         patternCanvas.height = gridSize;
 
-        patternCtx.strokeStyle = this.settings.gridColor as string;
+        const gridColor = `hsl(${this.settings.hue as number}, 100%, 30%)`;
+        patternCtx.strokeStyle = gridColor;
         patternCtx.lineWidth = 1;
         
         // Horizontal and Vertical lines
@@ -102,12 +103,11 @@ export class ArcadeStartupEffect implements VFXEffect {
 
         if (!this.canvas) return;
         const rect = this.canvas.getBoundingClientRect();
-        const needsReinit = this.width !== rect.width || this.height !== rect.height || this.settings.gridSize !== settings.gridSize;
+        const needsReinit = this.width !== rect.width || this.height !== rect.height || this.settings.gridSize !== settings.gridSize || this.settings.hue !== settings.hue;
         
-        const settingsChanged = JSON.stringify(this.settings) !== JSON.stringify(settings);
         this.settings = { ...ArcadeStartupEffect.defaultSettings, ...settings };
 
-        if (needsReinit || settingsChanged) {
+        if (needsReinit) {
             this.init(this.canvas, this.settings);
         }
     }
@@ -125,7 +125,7 @@ export class ArcadeStartupEffect implements VFXEffect {
         if (!this.width || !this.height) return;
 
         const timeInCycle = this.currentTime;
-        const { backgroundColor, textColor } = this.settings;
+        const { backgroundColor } = this.settings;
 
         // Background
         ctx.fillStyle = backgroundColor as string;
@@ -151,7 +151,8 @@ export class ArcadeStartupEffect implements VFXEffect {
         this.drawScanlines(ctx);
         
         // Text
-        ctx.fillStyle = textColor as string;
+        const textColor = `hsl(${this.settings.textHue as number}, 100%, 60%)`;
+        ctx.fillStyle = textColor;
         ctx.font = `bold ${Math.min(this.width, this.height) / 30}px "Source Code Pro", monospace`;
         ctx.textBaseline = 'top';
 

@@ -21,9 +21,8 @@ export class C64StartupEffect implements VFXEffect {
     static defaultSettings: VFXSettings = {
         line1: 'ＶＦＸシステム', // VFX System
         line2: '６４ＫＢ ＲＡＭ － 準備完了', // 64KB RAM - READY
-        borderColor: 'hsl(195, 53%, 79%)', // light blue
-        backgroundColor: 'hsl(230, 35%, 25%)', // dark blue/purple
-        textColor: 'hsl(195, 53%, 79%)', // light blue
+        primaryHue: 195,
+        backgroundHue: 230,
     };
 
     constructor() {
@@ -61,7 +60,11 @@ export class C64StartupEffect implements VFXEffect {
         if (!this.width || !this.height) return;
 
         const timeInCycle = this.currentTime;
-        const { borderColor, backgroundColor, textColor, line1, line2 } = this.settings;
+        const { line1, line2, primaryHue, backgroundHue } = this.settings;
+        
+        const borderColor = `hsl(${primaryHue as number}, 53%, 79%)`;
+        const backgroundColor = `hsl(${backgroundHue as number}, 35%, 25%)`;
+        const textColor = `hsl(${primaryHue as number}, 53%, 79%)`;
         
         const textLines = [line1 as string, line2 as string, "READY."];
 
@@ -84,12 +87,12 @@ export class C64StartupEffect implements VFXEffect {
         ctx.globalAlpha = overallOpacity;
 
         // Draw background and border
-        ctx.fillStyle = backgroundColor as string;
+        ctx.fillStyle = backgroundColor;
         ctx.fillRect(0, 0, this.width, this.height);
 
         const borderWidth = this.width * 0.1;
         const borderHeight = this.height * 0.1;
-        ctx.fillStyle = borderColor as string;
+        ctx.fillStyle = borderColor;
         // top
         ctx.fillRect(0, 0, this.width, borderHeight);
         // bottom
@@ -100,7 +103,7 @@ export class C64StartupEffect implements VFXEffect {
         ctx.fillRect(this.width - borderWidth, 0, borderWidth, this.height);
 
         // Draw Text
-        ctx.fillStyle = textColor as string;
+        ctx.fillStyle = textColor;
         ctx.font = `bold ${Math.min(this.width, this.height) / 20}px "Source Code Pro", monospace`;
         ctx.textBaseline = 'top';
 
