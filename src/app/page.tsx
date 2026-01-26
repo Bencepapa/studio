@@ -13,10 +13,12 @@ import { EffectPlayer } from "@/components/effect-player";
 import { type VFXEffectClass, type VFXSettings } from "@/effects/types";
 import { MatrixEffect } from "@/effects/matrix";
 import { HealingEffect } from "@/effects/healing";
+import { JackInEffect } from "@/effects/jack-in";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 const availableEffects: Record<string, VFXEffectClass> = {
+  "jack-in": JackInEffect,
   matrix: MatrixEffect,
   healing: HealingEffect,
 };
@@ -28,7 +30,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("matrix");
+  const [effectKey, setEffectKey] = React.useState<string>("jack-in");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);
