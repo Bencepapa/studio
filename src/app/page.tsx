@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -18,6 +19,7 @@ import { DamageEffect } from "@/effects/damage";
 import { ShieldEffect } from "@/effects/shield";
 import { AlertEffect } from "@/effects/alert";
 import { CrashEffect } from "@/effects/crash";
+import { CompilerEffect } from "@/effects/compiler";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +31,7 @@ const availableEffects: Record<string, VFXEffectClass> = {
   shield: ShieldEffect,
   alert: AlertEffect,
   crash: CrashEffect,
+  compiler: CompilerEffect,
 };
 
 const backgroundClasses: Record<string, string> = {
@@ -38,7 +41,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("crash");
+  const [effectKey, setEffectKey] = React.useState<string>("compiler");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);

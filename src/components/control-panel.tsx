@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -43,6 +44,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { Switch } from "./ui/switch";
 
 interface ControlPanelProps {
   availableEffects: Record<string, VFXEffectClass>;
@@ -90,6 +92,21 @@ export function ControlPanel({
 
   const renderSettingControl = (key: string, value: any) => {
     const label = key.replace(/([A-Z])/g, " $1");
+
+    if (typeof value === "boolean") {
+      return (
+        <div key={key} className="flex items-center justify-between py-2">
+          <Label htmlFor={key} className="capitalize text-xs">
+            {label}
+          </Label>
+          <Switch
+            id={key}
+            checked={value}
+            onCheckedChange={(v) => onSettingsChange({ [key]: v })}
+          />
+        </div>
+      );
+    }
 
     if (key.toLowerCase().includes("hue")) {
       return (
@@ -142,16 +159,21 @@ export function ControlPanel({
     }
     if (typeof value === "number") {
       const isSpeed = key.toLowerCase().includes('speed');
+      const isCount = key.toLowerCase().includes('count');
+      const min = isSpeed ? -2 : 0;
+      const max = isCount ? 1000 : (isSpeed ? 10 : 200);
+      const step = isSpeed ? 0.1 : (isCount ? 1 : 0.1);
+      
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="capitalize text-xs">
-            {label} ({value.toFixed(isSpeed ? 2 : 1)})
+            {label} ({value.toFixed(isSpeed ? 2 : (isCount ? 0 : 1))})
           </Label>
           <Slider
             id={key}
-            min={isSpeed ? -2 : 0}
-            max={isSpeed ? 10 : 200}
-            step={isSpeed ? 0.1 : 0.1}
+            min={min}
+            max={max}
+            step={step}
             value={[value]}
             onValueChange={([v]) => onSettingsChange({ [key]: v })}
           />
