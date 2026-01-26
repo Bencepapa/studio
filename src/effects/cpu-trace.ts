@@ -23,11 +23,13 @@ class PathNode {
 class Pin {
     x: number; // grid x
     y: number; // grid y
+    direction: 'n' | 'e' | 's' | 'w';
     isOccupied: boolean = false;
 
-    constructor(x: number, y: number) {
+    constructor(x: number, y: number, direction: 'n' | 'e' | 's' | 'w') {
         this.x = x;
         this.y = y;
+        this.direction = direction;
     }
 }
 
@@ -78,71 +80,50 @@ class CPUComponent extends BoardComponent {
     constructor(x: number, y: number, width: number, height: number, pinCountPerSide: number) {
         super(x, y, width, height);
 
-        if (pinCountPerSide < 2) {
-            // Handle case with 0 or 1 pin to avoid division by zero
-            if (pinCountPerSide === 1) {
-                const pinX = x + Math.floor(width / 2);
-                const pinY = y + Math.floor(height / 2);
-                this.pins.push(new Pin(pinX, y - 1));
-                this.pins.push(new Pin(pinX, y + height));
-                this.pins.push(new Pin(x - 1, pinY));
-                this.pins.push(new Pin(x + width, pinY));
-            }
-            return;
-        }
-        
-        const pinSpacingX = (width > 1) ? (width - 1) / (pinCountPerSide - 1) : 0;
-        const pinSpacingY = (height > 1) ? (height - 1) / (pinCountPerSide - 1) : 0;
+        if (pinCountPerSide < 1) return;
 
-        // Top & Bottom pins
+        const pinSpacingX = (width > 1) ? (width - 1) / (Math.max(1, pinCountPerSide - 1)) : 0;
+        const pinSpacingY = (height > 1) ? (height - 1) / (Math.max(1, pinCountPerSide - 1)) : 0;
+
         for (let i = 0; i < pinCountPerSide; i++) {
             const pinX = x + Math.round(i * pinSpacingX);
-            this.pins.push(new Pin(pinX, y - 1));
-            this.pins.push(new Pin(pinX, y + height));
-        }
-        // Left & Right pins
-        for (let i = 0; i < pinCountPerSide; i++) {
             const pinY = y + Math.round(i * pinSpacingY);
-            this.pins.push(new Pin(x - 1, pinY));
-            this.pins.push(new Pin(x + width, pinY));
+            
+            // Top & Bottom pins
+            if (i < pinCountPerSide) {
+                this.pins.push(new Pin(pinX, y - 1, 'n'));
+                this.pins.push(new Pin(pinX, y + height, 's'));
+            }
+             // Left & Right pins (avoiding corners)
+            if (i > 0 && i < pinCountPerSide -1) {
+                this.pins.push(new Pin(x - 1, pinY, 'w'));
+                this.pins.push(new Pin(x + width, pinY, 'e'));
+            }
         }
     }
 }
 
 class ICComponent extends BoardComponent {
-    constructor(x: number, y: number, width: number, height: number, pinCountPerSide: number) {
+     constructor(x: number, y: number, width: number, height: number, pinCountPerSide: number) {
         super(x, y, width, height);
-
-        if (pinCountPerSide < 2) {
-             // Handle case with 0 or 1 pin
-            if (pinCountPerSide === 1) {
-                if (height > width) { // vertical
-                    const pinY = y + Math.floor(height/2);
-                    this.pins.push(new Pin(x - 1, pinY));
-                    this.pins.push(new Pin(x + width, pinY));
-                } else { // horizontal
-                    const pinX = x + Math.floor(width/2);
-                    this.pins.push(new Pin(pinX, y - 1));
-                    this.pins.push(new Pin(pinX, y + height));
-                }
-            }
-            return;
-        }
+        
+        if (pinCountPerSide < 1) return;
 
         const isVertical = height > width;
+
         if (isVertical) {
-            const pinSpacing = (height > 1) ? (height - 1) / (pinCountPerSide - 1) : 0;
+            const pinSpacing = (height > 1) ? (height - 1) / (Math.max(1, pinCountPerSide - 1)) : 0;
             for (let i = 0; i < pinCountPerSide; i++) {
                 const pinY = y + Math.round(i * pinSpacing);
-                this.pins.push(new Pin(x - 1, pinY));
-                this.pins.push(new Pin(x + width, pinY));
+                this.pins.push(new Pin(x - 1, pinY, 'w'));
+                this.pins.push(new Pin(x + width, pinY, 'e'));
             }
         } else {
-            const pinSpacing = (width > 1) ? (width - 1) / (pinCountPerSide - 1) : 0;
+            const pinSpacing = (width > 1) ? (width - 1) / (Math.max(1, pinCountPerSide - 1)) : 0;
             for (let i = 0; i < pinCountPerSide; i++) {
                 const pinX = x + Math.round(i * pinSpacing);
-                this.pins.push(new Pin(pinX, y - 1));
-                this.pins.push(new Pin(pinX, y + height));
+                this.pins.push(new Pin(pinX, y - 1, 'n'));
+                this.pins.push(new Pin(pinX, y + height, 's'));
             }
         }
     }
@@ -222,10 +203,30 @@ export class CPUTraceEffect implements VFXEffect {
     static defaultSettings: VFXSettings = {
         nodeCount: 20,
         hue: 200,
+        traceAngle: 90,
     };
 
     // A* pathfinding algorithm
-    private aStar(startPos: { x: number, y: number }, endPos: { x: number, y: number }): { x: number, y: number }[] | null {
+    private aStar(startPin: Pin, endPin: Pin): { x: number, y: number }[] | null {
+
+        const getPathfindingEndpoint = (pin: Pin) => {
+            switch (pin.direction) {
+                case 'n': return { x: pin.x, y: pin.y - 1 };
+                case 's': return { x: pin.x, y: pin.y + 1 };
+                case 'w': return { x: pin.x - 1, y: pin.y };
+                case 'e': return { x: pin.x + 1, y: pin.y };
+            }
+        };
+
+        const startPos = getPathfindingEndpoint(startPin);
+        const endPos = getPathfindingEndpoint(endPin);
+
+        // Boundary checks for endpoints
+        if (startPos.x < 0 || startPos.x >= this.gridWidth || startPos.y < 0 || startPos.y >= this.gridHeight ||
+            endPos.x < 0 || endPos.x >= this.gridWidth || endPos.y < 0 || endPos.y >= this.gridHeight) {
+            return null;
+        }
+
         const openList: PathNode[] = [];
         const closedList: boolean[][] = Array(this.gridWidth).fill(false).map(() => Array(this.gridHeight).fill(false));
         
@@ -256,39 +257,56 @@ export class CPUTraceEffect implements VFXEffect {
                     path.push({ x: curr.x, y: curr.y });
                     curr = curr.parent;
                 }
-                return path.reverse();
+                const finalPath = path.reverse();
+                finalPath.unshift({ x: startPin.x, y: startPin.y });
+                finalPath.push({ x: endPin.x, y: endPin.y });
+                return finalPath;
             }
 
-            const neighbors = [];
+            const neighbors: { pos: { x: number, y: number }, cost: number }[] = [];
             const { x, y } = currentNode;
-            if (x > 0) neighbors.push({ x: x - 1, y });
-            if (x < this.gridWidth - 1) neighbors.push({ x: x + 1, y });
-            if (y > 0) neighbors.push({ x, y: y - 1 });
-            if (y < this.gridHeight - 1) neighbors.push({ x, y: y + 1 });
+            
+            // Cardinal directions
+            if (x > 0) neighbors.push({ pos: { x: x - 1, y }, cost: 1 });
+            if (x < this.gridWidth - 1) neighbors.push({ pos: { x: x + 1, y }, cost: 1 });
+            if (y > 0) neighbors.push({ pos: { x, y: y - 1 }, cost: 1 });
+            if (y < this.gridHeight - 1) neighbors.push({ pos: { x, y: y + 1 }, cost: 1 });
 
-            for (const neighborPos of neighbors) {
+            // Diagonal directions
+            if (this.settings.traceAngle === 45) {
+                if (x > 0 && y > 0) neighbors.push({ pos: { x: x - 1, y: y - 1 }, cost: Math.SQRT2 });
+                if (x < this.gridWidth - 1 && y > 0) neighbors.push({ pos: { x: x + 1, y: y - 1 }, cost: Math.SQRT2 });
+                if (x > 0 && y < this.gridHeight - 1) neighbors.push({ pos: { x: x - 1, y: y + 1 }, cost: Math.SQRT2 });
+                if (x < this.gridWidth - 1 && y < this.gridHeight - 1) neighbors.push({ pos: { x: x + 1, y: y + 1 }, cost: Math.SQRT2 });
+            }
+
+            for (const neighbor of neighbors) {
+                const neighborPos = neighbor.pos;
+
                 if (closedList[neighborPos.x][neighborPos.y] || this.grid[neighborPos.x][neighborPos.y] === 1) {
                     continue;
                 }
                 
-                const gScore = currentNode.g + 1;
+                const gScore = currentNode.g + neighbor.cost;
                 let gScoreIsBest = false;
                 
-                const neighborNode = new PathNode(neighborPos.x, neighborPos.y);
                 const existingNode = openList.find(n => n.x === neighborPos.x && n.y === neighborPos.y);
 
                 if (!existingNode) {
                     gScoreIsBest = true;
+                    const neighborNode = new PathNode(neighborPos.x, neighborPos.y);
                     neighborNode.h = Math.abs(neighborPos.x - endNode.x) + Math.abs(neighborPos.y - endNode.y);
                     openList.push(neighborNode);
+
+                    neighborNode.parent = currentNode;
+                    neighborNode.g = gScore;
+                    neighborNode.f = neighborNode.g + neighborNode.h;
+
                 } else if (gScore < existingNode.g) {
                     gScoreIsBest = true;
-                }
-
-                if (gScoreIsBest) {
-                    (existingNode || neighborNode).parent = currentNode;
-                    (existingNode || neighborNode).g = gScore;
-                    (existingNode || neighborNode).f = (existingNode || neighborNode).g + (existingNode || neighborNode).h;
+                    existingNode.parent = currentNode;
+                    existingNode.g = gScore;
+                    existingNode.f = existingNode.g + existingNode.h;
                 }
             }
         }
@@ -310,7 +328,6 @@ export class CPUTraceEffect implements VFXEffect {
         this.gridHeight = Math.floor(this.height / GRID_CELL_SIZE);
 
         if (this.gridWidth < 15 || this.gridHeight < 15) {
-            // Grid too small, don't render anything
             this.components = [];
             this.traces = [];
             return;
@@ -325,16 +342,15 @@ export class CPUTraceEffect implements VFXEffect {
         const cpuHeight = 8;
         let cpuX = Math.floor(this.gridWidth / 2 - cpuWidth / 2);
         let cpuY = Math.floor(this.gridHeight / 2 - cpuHeight / 2);
+        
+        cpuX = Math.max(1, Math.min(cpuX, this.gridWidth - cpuWidth - 2));
+        cpuY = Math.max(1, Math.min(cpuY, this.gridHeight - cpuHeight - 2));
 
-        // Clamp to ensure there's a 1-cell border for pins
-        cpuX = Math.max(1, Math.min(cpuX, this.gridWidth - cpuWidth - 1));
-        cpuY = Math.max(1, Math.min(cpuY, this.gridHeight - cpuHeight - 1));
-
-        const cpu = new CPUComponent(cpuX, cpuY, cpuWidth, cpuHeight, 4);
+        const cpu = new CPUComponent(cpuX, cpuY, cpuWidth, cpuHeight, 8);
         this.components.push(cpu);
         for (let i = 0; i < cpuWidth; i++) {
             for (let j = 0; j < cpuHeight; j++) {
-                this.grid[cpuX + i][cpuY + j] = 1; // Mark as obstacle
+                this.grid[cpuX + i][cpuY + j] = 1; 
             }
         }
 
@@ -344,14 +360,13 @@ export class CPUTraceEffect implements VFXEffect {
             let placed = false;
             let attempts = 0;
             while (!placed && attempts < 50) {
-                const icWidth = Math.floor(seededRandom(i * attempts) * 5) + 2; // 2-6 cells wide
-                const icHeight = Math.floor(seededRandom(i * attempts + 1) * 7) + 3; // 3-9 cells tall
+                const icWidth = Math.floor(seededRandom(i * attempts) * 5) + 2; 
+                const icHeight = Math.floor(seededRandom(i * attempts + 1) * 7) + 3; 
                 
-                // Ensure there's space for component and 1-cell pin border
-                const maxX = this.gridWidth - icWidth - 1;
-                const maxY = this.gridHeight - icHeight - 1;
+                const maxX = this.gridWidth - icWidth - 2;
+                const maxY = this.gridHeight - icHeight - 2;
 
-                if (maxX <= 1 || maxY <= 1) { // Not enough space on the grid for this IC
+                if (maxX <= 1 || maxY <= 1) { 
                     attempts++;
                     continue;
                 }
@@ -360,7 +375,6 @@ export class CPUTraceEffect implements VFXEffect {
                 const icY = Math.floor(seededRandom(i * attempts + 3) * (maxY - 1)) + 1;
 
                 let overlaps = false;
-                // check a slightly larger area to ensure spacing between components
                 for (let x = icX - 1; x < icX + icWidth + 1; x++) {
                     for (let y = icY - 1; y < icY + icHeight + 1; y++) {
                          if (x < 0 || x >= this.gridWidth || y < 0 || y >= this.gridHeight) continue;
@@ -404,14 +418,14 @@ export class CPUTraceEffect implements VFXEffect {
             const pin2 = comp2.getFreePin();
 
             if (pin1 && pin2) {
-                const path = this.aStar({x: pin1.x, y: pin1.y}, {x: pin2.x, y: pin2.y});
+                const path = this.aStar(pin1, pin2);
                 if(path) {
                     pin1.isOccupied = true;
                     pin2.isOccupied = true;
                     this.traces.push(new Trace(path, this.totalDuration, i));
                     // Mark path as obstacle for next trace
                     path.forEach(p => {
-                        if (traceGrid[p.x][p.y] === 0) { // Don't overwrite components
+                        if (traceGrid[p.x] && traceGrid[p.x][p.y] === 0) { // Don't overwrite components
                             traceGrid[p.x][p.y] = 1;
                         }
                     });
@@ -433,7 +447,8 @@ export class CPUTraceEffect implements VFXEffect {
         const needsReinit =
             this.width !== rect.width ||
             this.height !== rect.height ||
-            this.settings.nodeCount !== settings.nodeCount;
+            this.settings.nodeCount !== settings.nodeCount ||
+            this.settings.traceAngle !== settings.traceAngle;
 
         this.settings = { ...CPUTraceEffect.defaultSettings, ...settings };
 

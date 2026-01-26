@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -101,6 +102,25 @@ export function ControlPanel({
 
   const renderSettingControl = (key: string, value: any) => {
     const label = key.replace(/([A-Z])/g, " $1");
+
+    if (key === 'traceAngle' && effectKey === 'cpu-trace') {
+      return (
+        <div key={key} className="space-y-2">
+          <Label htmlFor={key} className="capitalize text-xs">
+            Trace Angle
+          </Label>
+          <Select value={String(value)} onValueChange={(v) => onSettingsChange({ [key]: Number(v) })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select angle" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="90">90° (Orthogonal)</SelectItem>
+              <SelectItem value="45">45° (Diagonal)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )
+    }
 
     if (key === 'ribbonTexture' && effectKey === 'levelup') {
       return (
@@ -399,3 +419,4 @@ export function ControlPanel({
     </>
   );
 }
+
