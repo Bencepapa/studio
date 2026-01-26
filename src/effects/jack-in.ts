@@ -93,7 +93,6 @@ export class JackInEffect implements VFXEffect {
 
   init(canvas: HTMLCanvasElement, settings: VFXSettings) {
     this.canvas = canvas;
-    const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     this.width = rect.width;
     this.height = rect.height;
@@ -114,7 +113,21 @@ export class JackInEffect implements VFXEffect {
   }
 
   update(time: number, deltaTime: number, settings: VFXSettings) {
+    if (!this.canvas) return;
+    const rect = this.canvas.getBoundingClientRect();
+
+    const needsReinit = 
+      settings.particleCount !== this.settings.particleCount || 
+      this.width !== rect.width || 
+      this.height !== rect.height;
+      
     this.settings = { ...JackInEffect.defaultSettings, ...settings };
+
+    if (needsReinit) {
+      this.init(this.canvas, this.settings);
+      return;
+    }
+    
     this.particles.forEach(p => p.update(time, deltaTime, this.settings));
   }
 

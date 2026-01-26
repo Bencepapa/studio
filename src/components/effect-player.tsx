@@ -28,6 +28,8 @@ export function EffectPlayer({
   const lastTimeRef = React.useRef<number>(0);
   const internalTimeRef = React.useRef<number>(time);
 
+  // This should only handle canvas resizing.
+  // The effects themselves will handle re-init on size change within their update loop.
   const resizeCanvas = React.useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -38,24 +40,23 @@ export function EffectPlayer({
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
-    
-    if (effectInstanceRef.current) {
-      effectInstanceRef.current.init(canvas, settings);
-    }
-  }, [settings]);
+  }, []);
 
   // Sync time from props, which is the source of truth from the parent
   React.useEffect(() => {
     internalTimeRef.current = time;
   }, [time]);
   
-  // Effect initialization and cleanup
+  // Effect initialization and cleanup.
+  // This should only run when the effect *class* changes.
   React.useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const instance = new Effect();
     effectInstanceRef.current = instance;
+    // Pass initial settings on first init. The effect's `update` method
+    // will handle subsequent settings changes.
     instance.init(canvas, settings);
     resizeCanvas();
 
@@ -63,7 +64,7 @@ export function EffectPlayer({
       instance.destroy();
       effectInstanceRef.current = null;
     };
-  }, [Effect, settings, resizeCanvas]);
+  }, [Effect, resizeCanvas]);
 
   const renderFrame = React.useCallback((currentTime: number, deltaTime = 0) => {
      const ctx = canvasRef.current?.getContext("2d");
@@ -74,6 +75,7 @@ export function EffectPlayer({
        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
        ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
        ctx.restore();
+       // Always pass the latest settings to update.
        effect.update(currentTime, deltaTime, settings);
        effect.render(ctx);
      }

@@ -105,7 +105,6 @@ export class MatrixEffect implements VFXEffect {
 
   init(canvas: HTMLCanvasElement, settings: VFXSettings) {
     this.canvas = canvas;
-    const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     this.width = rect.width;
     this.height = rect.height;
@@ -126,14 +125,19 @@ export class MatrixEffect implements VFXEffect {
   }
 
   update(time: number, deltaTime: number, settings: VFXSettings) {
-     this.settings = { ...MatrixEffect.defaultSettings, ...settings };
+    if (!this.canvas) return;
+    const rect = this.canvas.getBoundingClientRect();
 
-    const currentFontSize = this.settings.fontSize as number;
-    const fontChanged = this.columns.length > 0 && this.columns[0].fontSize !== currentFontSize;
-    const sizeChanged = this.columns.length > 0 && this.columns[0].canvasHeight !== this.height;
+    const needsReinit =
+      settings.fontSize !== this.settings.fontSize ||
+      this.width !== rect.width ||
+      this.height !== rect.height;
 
-    if (fontChanged || sizeChanged) {
-        this.init(this.canvas!, this.settings);
+    this.settings = { ...MatrixEffect.defaultSettings, ...settings };
+
+    if (needsReinit) {
+      this.init(this.canvas, this.settings);
+      return;
     }
 
     this.columns.forEach(column => column.update(time, deltaTime, this.settings));
