@@ -248,7 +248,7 @@ export function ControlPanel({
       );
     }
     if (typeof value === "number") {
-       if ((key === 'progressBarSkew' || key === 'textSkew') && effectKey === 'cyberdeck-startup') {
+       if (key === 'progressBarSkew' && effectKey === 'cyberdeck-startup') {
         return (
           <div key={key} className="space-y-2">
             <Label htmlFor={key} className="capitalize text-xs">
@@ -264,7 +264,29 @@ export function ControlPanel({
             />
           </div>
         );
-      }
+       }
+       if (key === 'textSkew' && (effectKey === 'cyberdeck-startup' || effectKey === 'game-menu')) {
+        let min = -0.5, max = 0.5;
+        if (effectKey === 'game-menu') {
+          min = -1.0;
+          max = 1.0;
+        }
+        return (
+          <div key={key} className="space-y-2">
+            <Label htmlFor={key} className="capitalize text-xs">
+              {label} ({value.toFixed(2)})
+            </Label>
+            <Slider
+              id={key}
+              min={min}
+              max={max}
+              step={0.05}
+              value={[value]}
+              onValueChange={([v]) => onSettingsChange({ [key]: v })}
+            />
+          </div>
+        );
+       }
       
       const isSpeed = key.toLowerCase().includes('speed');
       const isCount = key.toLowerCase().includes('count');
