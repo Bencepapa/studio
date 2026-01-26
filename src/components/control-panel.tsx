@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -230,6 +229,7 @@ export function ControlPanel({
       const isCount = key.toLowerCase().includes('count');
       const isRibbonWidth = key === 'ribbonWidth';
       const isTarget = key === 'targetX' || key === 'targetY';
+      const isCornerRadius = key === 'cornerRadius';
 
       const min = isSpeed ? -2 : 0;
       
@@ -242,17 +242,19 @@ export function ControlPanel({
         max = viewportWidth;
       } else if (isTarget) {
         max = 100;
+      } else if (isCornerRadius) {
+        max = 50;
       }
       else {
         max = 200;
       }
       
-      const step = isSpeed ? 0.1 : (isCount || isRibbonWidth || isTarget ? 1 : 0.1);
+      const step = isSpeed ? 0.1 : (isCount || isRibbonWidth || isTarget || isCornerRadius ? 1 : 0.1);
       
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="capitalize text-xs">
-            {label} ({value.toFixed(isSpeed ? 2 : (isCount || isRibbonWidth || isTarget ? 0 : 1))})
+            {label} ({value.toFixed(isSpeed ? 2 : (isCount || isRibbonWidth || isTarget || isCornerRadius ? 0 : 1))})
           </Label>
           <Slider
             id={key}

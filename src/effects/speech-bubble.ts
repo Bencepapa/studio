@@ -1,4 +1,3 @@
-
 import { mapRange } from './utils';
 import type { VFXEffect, VFXEffectClass, VFXSettings } from './types';
 
@@ -14,7 +13,7 @@ export class SpeechBubbleEffect implements VFXEffect {
         targetX: 50, // Percentage
         targetY: 50, // Percentage
         hue: 0,
-        cornerRadius: 20,
+        cornerRadius: 10,
     };
 
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
@@ -57,9 +56,10 @@ export class SpeechBubbleEffect implements VFXEffect {
         };
 
         // --- Calculate Bubble Size ---
-        const padding = 20;
-        const fontSize = 20;
-        const lineHeight = fontSize * 1.25;
+        const paddingX = 20;
+        const paddingY = 15;
+        const fontSize = 18;
+        const lineHeight = fontSize * 1.2;
         ctx.font = `bold ${fontSize}px "Space Grotesk", sans-serif`;
         
         const lines = text.split('\n');
@@ -71,8 +71,8 @@ export class SpeechBubbleEffect implements VFXEffect {
             }
         });
 
-        const bubbleWidth = maxLineWidth + padding * 2;
-        const bubbleHeight = (lines.length * lineHeight) + padding * 2;
+        const bubbleWidth = maxLineWidth + paddingX * 2;
+        const bubbleHeight = (lines.length * lineHeight) + paddingY * 2;
 
         const targetX = (targetXPercent / 100) * this.width;
         const targetY = (targetYPercent / 100) * this.height;
@@ -138,7 +138,7 @@ export class SpeechBubbleEffect implements VFXEffect {
         ctx.textBaseline = 'middle';
 
         lines.forEach((line, index) => {
-             const yPos = bubbleY + padding + (lineHeight / 2) + (index * lineHeight);
+             const yPos = bubbleY + paddingY + (lineHeight / 2) + (index * lineHeight);
              ctx.fillText(line, bubbleX + bubbleWidth / 2, yPos);
         });
         
