@@ -111,6 +111,7 @@ export class CyberdeckStartupEffect implements VFXEffect {
 
     private bootLines: BootLine[] = [];
     private totalDuration = 6.0;
+    private patternCache: Map<string, CanvasPattern | string> = new Map();
 
     static effectName = "Cyberdeck Startup";
     static defaultSettings: VFXSettings = {
@@ -118,6 +119,9 @@ export class CyberdeckStartupEffect implements VFXEffect {
         accentHue: 180, // Cyan
         scanlineOpacity: 0.08,
         wireframeCount: 50,
+        progressBarPattern: 'Solid',
+        progressBarSkew: 0.0,
+        textSkew: 0.0,
     };
 
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
@@ -129,6 +133,7 @@ export class CyberdeckStartupEffect implements VFXEffect {
         if (this.width === 0 || this.height === 0) return;
 
         this.settings = { ...CyberdeckStartupEffect.defaultSettings, ...settings };
+        this.patternCache.clear();
         
         this.wireframeChars = [];
         const count = this.settings.wireframeCount as number;
@@ -148,6 +153,62 @@ export class CyberdeckStartupEffect implements VFXEffect {
 
     destroy() {}
 
+    private getProgressBarPattern(): CanvasPattern | string | null {
+        const { progressBarPattern, accentHue } = this.settings;
+        const patternName = progressBarPattern as string;
+        const color = `hsla(${accentHue as number}, 80%, 70%, 0.8)`;
+
+        if (patternName === 'Solid') {
+            return color;
+        }
+
+        const cacheKey = `${patternName}-${accentHue}`;
+        if (this.patternCache.has(cacheKey)) {
+            return this.patternCache.get(cacheKey)!;
+        }
+
+        const pCanvas = document.createElement('canvas');
+        const pCtx = pCanvas.getContext('2d')!;
+        let pattern: CanvasPattern | null = null;
+        
+        pCtx.fillStyle = color;
+        pCtx.strokeStyle = color;
+
+        switch (patternName) {
+            case 'Dashed 45': {
+                pCanvas.width = 20;
+                pCanvas.height = 20;
+                pCtx.lineWidth = 4;
+                pCtx.beginPath();
+                pCtx.moveTo(0, 20);
+                pCtx.lineTo(20, 0);
+                pCtx.stroke();
+                pattern = pCtx.createPattern(pCanvas, 'repeat');
+                break;
+            }
+            case 'Blocks': {
+                pCanvas.width = 16;
+                pCanvas.height = 16;
+                pCtx.fillRect(0, 0, 8, 8);
+                pCtx.fillRect(8, 8, 8, 8);
+                pattern = pCtx.createPattern(pCanvas, 'repeat');
+                break;
+            }
+            case 'Horizontal Lines': {
+                pCanvas.width = 1;
+                pCanvas.height = 8;
+                pCtx.fillRect(0, 0, 1, 4);
+                pattern = pCtx.createPattern(pCanvas, 'repeat');
+                break;
+            }
+        }
+
+        if (pattern) {
+            this.patternCache.set(cacheKey, pattern);
+        }
+        return pattern;
+    }
+
     update(time: number, deltaTime: number, settings: VFXSettings) {
         this.currentTime = time % this.totalDuration;
 
@@ -155,10 +216,17 @@ export class CyberdeckStartupEffect implements VFXEffect {
         const rect = this.canvas.getBoundingClientRect();
         const needsReinit = this.width !== rect.width || this.height !== rect.height || this.settings.wireframeCount !== settings.wireframeCount;
         
+        const settingsChanged = 
+          this.settings.progressBarPattern !== settings.progressBarPattern ||
+          this.settings.accentHue !== settings.accentHue;
+          
         this.settings = { ...CyberdeckStartupEffect.defaultSettings, ...settings };
 
         if (needsReinit) {
             this.init(this.canvas, this.settings);
+        }
+        if (settingsChanged) {
+            this.patternCache.clear();
         }
 
         this.wireframeChars.forEach(c => c.update(this.currentTime, 1));
@@ -184,7 +252,7 @@ export class CyberdeckStartupEffect implements VFXEffect {
     render(ctx: CanvasRenderingContext2D) {
         if (!this.width || !this.height) return;
 
-        const { mainHue, accentHue } = this.settings;
+        const { mainHue, accentHue, textSkew, progressBarSkew } = this.settings;
         const timeInCycle = this.currentTime;
         const fov = this.width * 0.4;
 
@@ -203,6 +271,12 @@ export class CyberdeckStartupEffect implements VFXEffect {
         const fontSize = Math.min(this.width, this.height) / 35;
         ctx.font = `bold ${fontSize}px "Source Code Pro", monospace`;
         const textColor = `hsl(${mainHue}, 90%, 60%)`;
+        
+        ctx.save();
+        if (textSkew !== 0) {
+            const skewOffset = (this.height / 2) * (textSkew as number);
+            ctx.transform(1, 0, textSkew as number, 1, -skewOffset, 0);
+        }
 
         // --- Header ---
         const headerY = this.height * 0.1;
@@ -238,6 +312,8 @@ export class CyberdeckStartupEffect implements VFXEffect {
             }
         });
         
+        ctx.restore(); // Restore from text skew
+
         // --- Loading Bar ---
         const loadingStartTime = 2.5;
         if (timeInCycle > loadingStartTime) {
@@ -249,17 +325,33 @@ export class CyberdeckStartupEffect implements VFXEffect {
             const barWidth = this.width * 0.8;
             const barX = this.width * 0.1;
 
+            ctx.save();
+            if (progressBarSkew !== 0) {
+                 const skewOffset = loadingY * (progressBarSkew as number);
+                 ctx.transform(1, 0, progressBarSkew as number, 1, -skewOffset, 0);
+            }
+
             // Bar background
             ctx.strokeStyle = textColor;
             ctx.lineWidth = 2;
             ctx.strokeRect(barX, loadingY, barWidth, fontSize);
             
             // Bar fill
-            ctx.fillStyle = `hsla(${accentHue as number}, 80%, 70%, 0.8)`;
-            ctx.fillRect(barX, loadingY, barWidth * progress, fontSize);
+            const pattern = this.getProgressBarPattern();
+            if (pattern) {
+                ctx.fillStyle = pattern;
+                ctx.fillRect(barX, loadingY, barWidth * progress, fontSize);
+            }
+            
+            ctx.restore();
         }
 
         // --- Footer ---
+        ctx.save();
+        if (textSkew !== 0) {
+            const skewOffset = (this.height / 2) * (textSkew as number);
+            ctx.transform(1, 0, textSkew as number, 1, -skewOffset, 0);
+        }
         const footerY = this.height * 0.9;
         this.drawHorizontalLine(ctx, footerY, 1);
         if(timeInCycle > 4.5) {
@@ -269,6 +361,7 @@ export class CyberdeckStartupEffect implements VFXEffect {
              const textToShow = readyText.substring(0, Math.floor((timeInCycle - 4.5) * 20));
              ctx.fillText(textToShow, this.width/2, footerY + fontSize * 0.5);
         }
+        ctx.restore(); // Restore from text skew
 
         // --- Glitch effect ---
         if(Math.random() < 0.05) {

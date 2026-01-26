@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -101,6 +102,27 @@ export function ControlPanel({
 
   const renderSettingControl = (key: string, value: any) => {
     const label = key.replace(/([A-Z])/g, " $1");
+
+    if (key === 'progressBarPattern' && effectKey === 'cyberdeck-startup') {
+      return (
+        <div key={key} className="space-y-2">
+          <Label htmlFor={key} className="capitalize text-xs">
+            Progress Bar Pattern
+          </Label>
+          <Select value={value} onValueChange={(v) => onSettingsChange({ [key]: v })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select pattern" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Solid">Solid</SelectItem>
+              <SelectItem value="Dashed 45">45° Dashed</SelectItem>
+              <SelectItem value="Blocks">Blocks</SelectItem>
+              <SelectItem value="Horizontal Lines">Horizontal Lines</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )
+    }
 
     if (key === 'traceAngle' && effectKey === 'cpu-trace') {
       return (
@@ -225,6 +247,24 @@ export function ControlPanel({
       );
     }
     if (typeof value === "number") {
+       if ((key === 'progressBarSkew' || key === 'textSkew') && effectKey === 'cyberdeck-startup') {
+        return (
+          <div key={key} className="space-y-2">
+            <Label htmlFor={key} className="capitalize text-xs">
+              {label} ({value.toFixed(2)})
+            </Label>
+            <Slider
+              id={key}
+              min={-0.5}
+              max={0.5}
+              step={0.05}
+              value={[value]}
+              onValueChange={([v]) => onSettingsChange({ [key]: v })}
+            />
+          </div>
+        );
+      }
+      
       const isSpeed = key.toLowerCase().includes('speed');
       const isCount = key.toLowerCase().includes('count');
       const isRibbonWidth = key === 'ribbonWidth';
