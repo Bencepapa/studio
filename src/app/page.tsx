@@ -11,6 +11,7 @@ import {
 import { ControlPanel } from "@/components/control-panel";
 import { EffectPlayer } from "@/components/effect-player";
 import { type VFXEffectClass, type VFXSettings } from "@/effects/types";
+import { DataCubesEffect } from "@/effects/data-cubes";
 import { MatrixEffect } from "@/effects/matrix";
 import { HealingEffect } from "@/effects/healing";
 import { JackInEffect } from "@/effects/jack-in";
@@ -38,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const availableEffects: Record<string, VFXEffectClass> = {
+  "data-cubes": DataCubesEffect,
   "cpu-trace": CPUTraceEffect,
   "pc-startup": PCStartupEffect,
   "arcade-startup": ArcadeStartupEffect,
@@ -68,7 +70,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("cpu-trace");
+  const [effectKey, setEffectKey] = React.useState<string>("data-cubes");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);
