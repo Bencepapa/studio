@@ -15,9 +15,7 @@ export class SpeechBubbleEffect implements VFXEffect {
 
     // Animation state
     private currentTime = 0;
-    private readonly totalDuration = 5.0; // 5 second loop
     private readonly appearDuration = 0.3;
-    private readonly holdDuration = 4.4;
     private readonly disappearDuration = 0.3;
 
     static effectName = "Speech Bubble";
@@ -27,6 +25,7 @@ export class SpeechBubbleEffect implements VFXEffect {
         targetY: 50, // Percentage
         hue: 0,
         cornerRadius: 10,
+        displayDuration: 4.4,
     };
 
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
@@ -67,35 +66,46 @@ export class SpeechBubbleEffect implements VFXEffect {
                 currentX = 0;
                 return;
             }
+            if (word === '') return;
 
-            let cleanWord = word;
-            let animation: LayoutWord['animation'] = 'none';
-    
-            if (word.startsWith('~') && word.endsWith('~') && word.length > 2) {
-                animation = 'wobble';
-                cleanWord = word.substring(1, word.length - 1);
-            } else if (word.startsWith('^') && word.endsWith('^') && word.length > 2) {
-                animation = 'wave';
-                cleanWord = word.substring(1, word.length - 1);
-            } else if (word.startsWith('*') && word.endsWith('*') && word.length > 2) {
-                animation = 'shake';
-                cleanWord = word.substring(1, word.length - 1);
-            }
-            
-            const wordWidth = ctx.measureText(cleanWord).width;
-    
+            // Measure the visual width of the word (e.g., "*shaky*!" -> "shaky!") for wrapping logic
+            const wordWidth = ctx.measureText(word.replace(/[~^*]/g, '')).width;
             if (currentLine.length > 0 && currentX + wordWidth > maxWidth) {
-                lines.push({ words: currentLine, width: currentX - spaceWidth });
+                lines.push({ words: currentLine, width: currentX > 0 ? currentX - spaceWidth : 0 });
                 currentLine = [];
                 currentX = 0;
             }
-    
-            currentLine.push({ text: cleanWord, animation, x: currentX });
-            currentX += wordWidth + spaceWidth;
+
+            // Now, break down the word and add its parts to the line.
+            const match = word.match(/^([~^*])(.+?)\1([.,!?;:]*)$/);
+            if (match && match[2]) {
+                 const marker = match[1];
+                 const content = match[2];
+                 const punctuation = match[3];
+
+                 let animation: LayoutWord['animation'] = 'none';
+                 if (marker === '~') animation = 'wobble';
+                 else if (marker === '^') animation = 'wave';
+                 else if (marker === '*') animation = 'shake';
+
+                 const contentWidth = ctx.measureText(content).width;
+                 currentLine.push({ text: content, animation, x: currentX });
+                 currentX += contentWidth;
+                 
+                 if (punctuation) {
+                     const puncWidth = ctx.measureText(punctuation).width;
+                     currentLine.push({ text: punctuation, animation: 'none', x: currentX });
+                     currentX += puncWidth;
+                 }
+            } else {
+                currentLine.push({ text: word, animation: 'none', x: currentX });
+                currentX += ctx.measureText(word).width;
+            }
+            currentX += spaceWidth;
         });
     
         if (currentLine.length > 0) {
-            lines.push({ words: currentLine, width: currentX - spaceWidth });
+            lines.push({ words: currentLine, width: currentX > 0 ? currentX - spaceWidth : 0 });
         }
         
         let maxLineWidth = 0;
@@ -114,19 +124,23 @@ export class SpeechBubbleEffect implements VFXEffect {
             targetX: targetXPercent,
             targetY: targetYPercent,
             hue,
-            cornerRadius
+            cornerRadius,
+            displayDuration,
         } = this.settings as {
             text: string,
             targetX: number,
             targetY: number,
             hue: number,
-            cornerRadius: number
+            cornerRadius: number,
+            displayDuration: number
         };
         
+        const totalDuration = this.appearDuration + displayDuration + this.disappearDuration;
+
         // --- 1. Animation State ---
-        const timeInCycle = this.currentTime % this.totalDuration;
+        const timeInCycle = this.currentTime % totalDuration;
         const appearEnd = this.appearDuration;
-        const holdEnd = appearEnd + this.holdDuration;
+        const holdEnd = appearEnd + displayDuration;
 
         let bubbleScale = 0;
         let bubbleOpacity = 0;
@@ -221,7 +235,7 @@ export class SpeechBubbleEffect implements VFXEffect {
     
                 switch(word.animation) {
                     case 'wave':
-                        wordY += Math.sin(this.currentTime * 8) * 3;
+                        wordY += Math.sin(this.currentTime * 8 + (word.x / 10)) * 3;
                         break;
                     case 'shake':
                         wordX += (Math.random() - 0.5) * 2;
@@ -240,8 +254,9 @@ export class SpeechBubbleEffect implements VFXEffect {
                             ctx.restore();
                             charX += charWidth;
                         }
+                        // Since we drew the word char by char, we skip the final fillText.
                         ctx.restore();
-                        continue; 
+                        return; // Go to next word
                 }
                 
                 ctx.fillText(word.text, wordX, wordY);
