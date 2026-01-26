@@ -44,8 +44,10 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { GameUiBackground } from "@/components/game-ui-background";
+import { WelcomeEffect } from "@/effects/welcome";
 
 const availableEffects: Record<string, VFXEffectClass> = {
+  "welcome": WelcomeEffect,
   "game-menu": GameMenuEffect,
   "cyberdeck-startup": CyberdeckStartupEffect,
   "data-cubes": DataCubesEffect,
@@ -83,7 +85,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("game-menu");
+  const [effectKey, setEffectKey] = React.useState<string>("welcome");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);
