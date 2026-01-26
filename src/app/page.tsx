@@ -16,6 +16,7 @@ import { HealingEffect } from "@/effects/healing";
 import { JackInEffect } from "@/effects/jack-in";
 import { DamageEffect } from "@/effects/damage";
 import { ShieldEffect } from "@/effects/shield";
+import { AlertEffect } from "@/effects/alert";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ const availableEffects: Record<string, VFXEffectClass> = {
   healing: HealingEffect,
   damage: DamageEffect,
   shield: ShieldEffect,
+  alert: AlertEffect,
 };
 
 const backgroundClasses: Record<string, string> = {

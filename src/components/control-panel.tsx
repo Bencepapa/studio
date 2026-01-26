@@ -107,6 +107,23 @@ export function ControlPanel({
         </div>
       );
     }
+    if (key.toLowerCase().includes("opacity")) {
+      return (
+        <div key={key} className="space-y-2">
+          <Label htmlFor={key} className="capitalize text-xs">
+            {label} ({value.toFixed(2)})
+          </Label>
+          <Slider
+            id={key}
+            min={0}
+            max={1}
+            step={0.05}
+            value={[value]}
+            onValueChange={([v]) => onSettingsChange({ [key]: v })}
+          />
+        </div>
+      );
+    }
     if (typeof value === "number") {
       const isSpeed = key.toLowerCase().includes('speed');
       return (

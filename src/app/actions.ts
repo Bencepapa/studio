@@ -10,6 +10,7 @@ const effectFileMap: { [key: string]: string } = {
   healing: "healing.ts",
   damage: "damage.ts",
   shield: "shield.ts",
+  alert: "alert.ts",
 };
 
 export async function generateDependenciesForEffect(effectKey: string) {
