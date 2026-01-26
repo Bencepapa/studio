@@ -44,9 +44,12 @@ class CompilerBox {
     }
 
     draw(ctx: CanvasRenderingContext2D, time: number, phase: string, settings: VFXSettings) {
-        const { compilingMessage, doneMessage, blinkDoneMessage, hue } = settings;
-        const baseColor = `hsla(${hue}, 100%, 70%, ${this.opacity})`;
-        const bgColor = `hsla(${hue}, 100%, 10%, ${this.opacity * 0.8})`;
+        const { compilingMessage, doneMessage, blinkDoneMessage, hue, endHue } = settings;
+        
+        const activeHue = (phase === 'done' && endHue !== undefined) ? endHue : hue;
+        
+        const baseColor = `hsla(${activeHue}, 100%, 70%, ${this.opacity})`;
+        const bgColor = `hsla(${activeHue}, 100%, 10%, ${this.opacity * 0.8})`;
 
         if (this.opacity <= 0) return;
         
@@ -118,6 +121,7 @@ export class CompilerEffect implements VFXEffect {
         blinkDoneMessage: true,
         keepCharsOnTop: false,
         hue: 128,
+        endHue: 128,
     };
     
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
