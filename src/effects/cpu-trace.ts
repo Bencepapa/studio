@@ -271,6 +271,13 @@ export class CPUTraceEffect implements VFXEffect {
         
         this.gridWidth = Math.floor(this.width / GRID_CELL_SIZE);
         this.gridHeight = Math.floor(this.height / GRID_CELL_SIZE);
+
+        if (this.gridWidth < 15 || this.gridHeight < 15) {
+            // Grid too small, don't render anything
+            this.components = [];
+            this.traces = [];
+            return;
+        }
         
         this.grid = Array(this.gridWidth).fill(0).map(() => Array(this.gridHeight).fill(0));
         this.components = [];
@@ -279,8 +286,13 @@ export class CPUTraceEffect implements VFXEffect {
         // 1. Place CPU
         const cpuWidth = 8;
         const cpuHeight = 8;
-        const cpuX = Math.floor(this.gridWidth / 2 - cpuWidth / 2);
-        const cpuY = Math.floor(this.gridHeight / 2 - cpuHeight / 2);
+        let cpuX = Math.floor(this.gridWidth / 2 - cpuWidth / 2);
+        let cpuY = Math.floor(this.gridHeight / 2 - cpuHeight / 2);
+
+        // Clamp to ensure there's a 1-cell border for pins
+        cpuX = Math.max(1, Math.min(cpuX, this.gridWidth - cpuWidth - 1));
+        cpuY = Math.max(1, Math.min(cpuY, this.gridHeight - cpuHeight - 1));
+
         const cpu = new CPUComponent(cpuX, cpuY, cpuWidth, cpuHeight, 4);
         this.components.push(cpu);
         for (let i = 0; i < cpuWidth; i++) {
@@ -297,8 +309,18 @@ export class CPUTraceEffect implements VFXEffect {
             while (!placed && attempts < 50) {
                 const icWidth = Math.floor(seededRandom(i * attempts) * 5) + 2; // 2-6 cells wide
                 const icHeight = Math.floor(seededRandom(i * attempts + 1) * 7) + 3; // 3-9 cells tall
-                const icX = Math.floor(seededRandom(i * attempts + 2) * (this.gridWidth - icWidth));
-                const icY = Math.floor(seededRandom(i * attempts + 3) * (this.gridHeight - icHeight));
+                
+                // Ensure there's space for component and 1-cell pin border
+                const maxX = this.gridWidth - icWidth - 1;
+                const maxY = this.gridHeight - icHeight - 1;
+
+                if (maxX <= 1 || maxY <= 1) { // Not enough space on the grid for this IC
+                    attempts++;
+                    continue;
+                }
+
+                const icX = Math.floor(seededRandom(i * attempts + 2) * (maxX - 1)) + 1;
+                const icY = Math.floor(seededRandom(i * attempts + 3) * (maxY - 1)) + 1;
 
                 let overlaps = false;
                 for (let x = icX; x < icX + icWidth; x++) {
