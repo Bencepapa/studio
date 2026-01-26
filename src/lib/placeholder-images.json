@@ -7,12 +7,6 @@
       "imageHint": "abstract logo"
     },
     {
-      "id": "game-ui-background",
-      "description": "A futuristic game UI with buttons and text elements, suitable for a background.",
-      "imageUrl": "https://images.unsplash.com/photo-1590047698876-b50e8739b346?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxnYW1lJTIwdWl8ZW58MHx8fHwxNzY5NDU2NDUyfDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "game ui"
-    },
-    {
       "id": "cyber-matrix-background",
       "description": "A view of a cyber matrix with connected geometric shapes, in a style reminiscent of Shadowrun.",
       "imageUrl": "https://images.unsplash.com/photo-1732082052116-f79e1bfbc0cb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxjeWJlciUyMG1hdHJpeHxlbnwwfHx8fDE3Njk0NTY0NTJ8MA&ixlib=rb-4.1.0&q=80&w=1080",

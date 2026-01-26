@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { GameUiBackground } from "@/components/game-ui-background";
 
 const availableEffects: Record<string, VFXEffectClass> = {
   "data-cubes": DataCubesEffect,
@@ -123,7 +124,6 @@ export default function Home() {
       ...(settings[effectKey] || {}),
     }), [CurrentEffect, settings, effectKey]);
 
-  const gameUiBg = PlaceHolderImages.find(img => img.id === 'game-ui-background');
   const cyberMatrixBg = PlaceHolderImages.find(img => img.id === 'cyber-matrix-background');
 
   return (
@@ -168,15 +168,7 @@ export default function Home() {
           </div>
         </header>
         <main className={cn("flex-1 relative bg-background overflow-hidden", backgroundClasses[background])}>
-          {background === 'game-ui' && gameUiBg && (
-            <Image
-              src={gameUiBg.imageUrl}
-              alt={gameUiBg.description}
-              fill
-              className="object-cover"
-              data-ai-hint={gameUiBg.imageHint}
-            />
-          )}
+          {background === 'game-ui' && <GameUiBackground />}
           {background === 'cyber-matrix' && cyberMatrixBg && (
             <Image
               src={cyberMatrixBg.imageUrl}
