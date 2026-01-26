@@ -236,6 +236,7 @@ export class LinuxStartupEffect implements VFXEffect {
         const lineHeight = fontSize * 1.2;
         const maxLines = Math.floor((this.height - logStartY) / lineHeight);
         let scrollOffset = 0;
+        const statusColumnX = this.width * 0.8;
 
         const visibleLines = this.logLines.filter(line => timeInCycle >= line.appearTime);
         
