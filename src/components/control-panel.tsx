@@ -1,0 +1,267 @@
+"use client";
+
+import * as React from "react";
+import {
+  GitBranch,
+  Play,
+  Pause,
+  Rewind,
+  FastForward,
+  Settings2,
+  FileText,
+  Loader2,
+} from "lucide-react";
+import {
+  SidebarHeader,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarSeparator,
+} from "@/components/ui/sidebar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
+import type { VFXEffectClass, VFXSettings } from "@/effects/types";
+import { generateDependenciesForEffect } from "@/app/actions";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "./ui/scroll-area";
+
+interface ControlPanelProps {
+  availableEffects: Record<string, VFXEffectClass>;
+  effectKey: string;
+  onEffectChange: (key: string) => void;
+  isPlaying: boolean;
+  onIsPlayingChange: (playing: boolean) => void;
+  speed: number;
+  onSpeedChange: (speed: number) => void;
+  time: number;
+  onTimeChange: (time: number) => void;
+  duration: number;
+  settings: VFXSettings;
+  onSettingsChange: (settings: Partial<VFXSettings>) => void;
+}
+
+export function ControlPanel({
+  availableEffects,
+  effectKey,
+  onEffectChange,
+  isPlaying,
+  onIsPlayingChange,
+  speed,
+  onSpeedChange,
+  time,
+  onTimeChange,
+  duration,
+  settings,
+  onSettingsChange,
+}: ControlPanelProps) {
+  const [isGenerating, setIsGenerating] = React.useState(false);
+  const [instructions, setInstructions] = React.useState<string | null>(null);
+
+  const handleGenerateInstructions = async () => {
+    setIsGenerating(true);
+    setInstructions(null);
+    const result = await generateDependenciesForEffect(effectKey);
+    setInstructions(result.instructions);
+    setIsGenerating(false);
+  };
+
+  const renderSettingControl = (key: string, value: any) => {
+    if (key.toLowerCase().includes("hue")) {
+      return (
+        <div key={key} className="space-y-2">
+          <Label htmlFor={key} className="capitalize text-xs">
+            {key.replace(/([A-Z])/g, " $1")}
+          </Label>
+          <Slider
+            id={key}
+            min={0}
+            max={360}
+            step={1}
+            value={[value]}
+            onValueChange={([v]) => onSettingsChange({ [key]: v })}
+          />
+        </div>
+      );
+    }
+    if (typeof value === "number") {
+      return (
+        <div key={key} className="space-y-2">
+          <Label htmlFor={key} className="capitalize text-xs">
+            {key.replace(/([A-Z])/g, " $1")}
+          </Label>
+          <Slider
+            id={key}
+            min={0}
+            max={key.toLowerCase().includes('speed') ? 10 : 200}
+            step={0.1}
+            value={[value]}
+            onValueChange={([v]) => onSettingsChange({ [key]: v })}
+          />
+        </div>
+      );
+    }
+    // Add more control types as needed
+    return null;
+  };
+
+  return (
+    <>
+      <SidebarHeader>
+        <SidebarGroup>
+          <SidebarGroupLabel>
+            <GitBranch />
+            <span>Effect Library</span>
+          </SidebarGroupLabel>
+          <Select value={effectKey} onValueChange={onEffectChange}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select an effect" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(availableEffects).map(([key, effect]) => (
+                <SelectItem key={key} value={key}>
+                  {effect.effectName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SidebarGroup>
+      </SidebarHeader>
+
+      <SidebarSeparator />
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>
+            <Settings2 />
+            <span>Controls</span>
+          </SidebarGroupLabel>
+          <div className="space-y-4 p-2">
+            <div className="space-y-2">
+              <Label htmlFor="timeline" className="text-xs">
+                Timeline
+              </Label>
+              <Slider
+                id="timeline"
+                min={0}
+                max={duration}
+                step={0.1}
+                value={[time]}
+                onValueChange={([v]) => onTimeChange(v)}
+              />
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onSpeedChange(Math.max(0, speed - 0.25))}
+                aria-label="Decrease speed"
+              >
+                <Rewind />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="w-12 h-12 rounded-full border-accent text-accent"
+                onClick={() => onIsPlayingChange(!isPlaying)}
+                aria-label={isPlaying ? "Pause" : "Play"}
+              >
+                {isPlaying ? <Pause /> : <Play />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onSpeedChange(speed + 0.25)}
+                aria-label="Increase speed"
+              >
+                <FastForward />
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="speed" className="text-xs">
+                Speed: {speed.toFixed(2)}x
+              </Label>
+              <Slider
+                id="speed"
+                min={0}
+                max={4}
+                step={0.1}
+                value={[speed]}
+                onValueChange={([v]) => onSpeedChange(v)}
+              />
+            </div>
+          </div>
+        </SidebarGroup>
+        
+        <SidebarSeparator />
+
+        <SidebarGroup>
+           <SidebarGroupLabel>
+            <Settings2 />
+            <span>Parameters</span>
+          </SidebarGroupLabel>
+          <div className="space-y-4 p-2">
+            {Object.entries(settings).map(([key, value]) => renderSettingControl(key, value))}
+          </div>
+        </SidebarGroup>
+      </SidebarContent>
+      
+      <SidebarSeparator />
+
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={handleGenerateInstructions}
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <FileText />
+              )}
+              <span>
+                {isGenerating
+                  ? "Generating..."
+                  : "Get Dependencies"}
+              </span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+
+      <Dialog open={!!instructions} onOpenChange={(open) => !open && setInstructions(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Dependency Instructions for {availableEffects[effectKey].effectName}</DialogTitle>
+            <DialogDescription>
+              Follow these instructions to include the necessary files in your project.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] rounded-md border p-4">
+            <pre className="text-sm font-code whitespace-pre-wrap">
+              <code>{instructions}</code>
+            </pre>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
