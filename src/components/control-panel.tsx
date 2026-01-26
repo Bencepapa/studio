@@ -88,11 +88,13 @@ export function ControlPanel({
   };
 
   const renderSettingControl = (key: string, value: any) => {
+    const label = key.replace(/([A-Z])/g, " $1");
+
     if (key.toLowerCase().includes("hue")) {
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="capitalize text-xs">
-            {key.replace(/([A-Z])/g, " $1")}
+            {label} ({value})
           </Label>
           <Slider
             id={key}
@@ -110,7 +112,7 @@ export function ControlPanel({
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="capitalize text-xs">
-            {key.replace(/([A-Z])/g, " $1")}
+            {label} ({value.toFixed(isSpeed ? 2 : 1)})
           </Label>
           <Slider
             id={key}
