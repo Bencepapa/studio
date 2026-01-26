@@ -108,7 +108,7 @@ export class C64StartupEffect implements VFXEffect {
         const textY = borderHeight + 20;
         const lineHeight = Math.min(this.width, this.height) / 20 * 1.5;
 
-        const totalCharsToType = textLines.join('  ').length;
+        const totalCharsToType = textLines.join('').length;
         const charsToDraw = Math.floor(mapRange(timeInCycle, typingStart, holdStart, 0, totalCharsToType + 1));
         
         let charsDrawn = 0;
@@ -127,13 +127,13 @@ export class C64StartupEffect implements VFXEffect {
             if (charsDrawn + line.length > charsToDraw) { // Is this the line the cursor is on?
                 cursorX = textX + ctx.measureText(lineToDraw).width;
                 cursorY = textY + i * lineHeight;
-            } else {
-                 if (i + 1 < textLines.length) { // If there's a next line
+            } else { // This line is fully typed
+                 if (i + 1 < textLines.length) { // If there's a next line, move cursor there
                     cursorX = textX;
                     cursorY = textY + (i + 1) * lineHeight;
-                 } else { // End of all text
-                    cursorX = textX + ctx.measureText(line).width;
-                    cursorY = textY + i * lineHeight;
+                 } else { // This is the last line and it's fully typed
+                    cursorX = textX;
+                    cursorY = textY + (i + 1) * lineHeight;
                  }
             }
             charsDrawn += line.length;
