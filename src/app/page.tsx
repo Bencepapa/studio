@@ -18,12 +18,14 @@ import { ShieldEffect } from "@/effects/shield";
 import { AlertEffect } from "@/effects/alert";
 import { CrashEffect } from "@/effects/crash";
 import { CompilerEffect } from "@/effects/compiler";
+import { LevelUpEffect } from "@/effects/levelup";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const availableEffects: Record<string, VFXEffectClass> = {
+  levelup: LevelUpEffect,
   "jack-in": JackInEffect,
   matrix: MatrixEffect,
   healing: HealingEffect,
@@ -41,7 +43,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("compiler");
+  const [effectKey, setEffectKey] = React.useState<string>("levelup");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);
@@ -62,7 +64,9 @@ export default function Home() {
     setEffectKey(newEffectKey);
     // Reset time and speed when effect changes
     setTime(0);
-    setSpeed(1);
+    if (speed < 0) {
+      setSpeed(1);
+    }
   };
 
   const effectKeys = Object.keys(availableEffects);
