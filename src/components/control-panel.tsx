@@ -229,6 +229,7 @@ export function ControlPanel({
       const isSpeed = key.toLowerCase().includes('speed');
       const isCount = key.toLowerCase().includes('count');
       const isRibbonWidth = key === 'ribbonWidth';
+      const isTarget = key === 'targetX' || key === 'targetY';
 
       const min = isSpeed ? -2 : 0;
       
@@ -239,16 +240,19 @@ export function ControlPanel({
         max = 10;
       } else if (isRibbonWidth) {
         max = viewportWidth;
-      } else {
+      } else if (isTarget) {
+        max = 100;
+      }
+      else {
         max = 200;
       }
       
-      const step = isSpeed ? 0.1 : (isCount ? 1 : (isRibbonWidth ? 1 : 0.1));
+      const step = isSpeed ? 0.1 : (isCount || isRibbonWidth || isTarget ? 1 : 0.1);
       
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="capitalize text-xs">
-            {label} ({value.toFixed(isSpeed ? 2 : (isCount || isRibbonWidth ? 0 : 1))})
+            {label} ({value.toFixed(isSpeed ? 2 : (isCount || isRibbonWidth || isTarget ? 0 : 1))})
           </Label>
           <Slider
             id={key}
@@ -421,4 +425,3 @@ export function ControlPanel({
     </>
   );
 }
-

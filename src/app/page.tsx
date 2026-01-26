@@ -35,6 +35,7 @@ import { PCStartupEffect } from "@/effects/pc-startup";
 import { LinuxStartupEffect } from "@/effects/linux-startup";
 import { CPUTraceEffect } from "@/effects/cpu-trace";
 import { SystemOverloadEffect } from "@/effects/system-overload";
+import { SpeechBubbleEffect } from "@/effects/speech-bubble";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ const availableEffects: Record<string, VFXEffectClass> = {
   "data-cubes": DataCubesEffect,
   "cpu-trace": CPUTraceEffect,
   "system-overload": SystemOverloadEffect,
+  "speech-bubble": SpeechBubbleEffect,
   "pc-startup": PCStartupEffect,
   "arcade-startup": ArcadeStartupEffect,
   "c64-startup": C64StartupEffect,
