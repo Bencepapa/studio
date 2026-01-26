@@ -2,12 +2,24 @@
 import { seededRandom, mapRange } from './utils';
 import type { VFXEffect, VFXEffectClass, VFXSettings } from './types';
 
+const colorPalette = [
+    [255, 0, 255], [0, 255, 255], [255, 255, 0], [255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 255],
+    [255, 128, 0], [255, 0, 128], [128, 255, 0], [0, 255, 128], [128, 0, 255], [0, 128, 255], [255, 128, 128],
+    [128, 255, 128], [128, 128, 255]
+];
+const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const nums = '0123456789';
+const charset = katakana + latin + nums;
+
 class FadeCell {
     x: number;
     y: number;
     width: number;
     height: number;
     delay: number;
+    color: number[];
+    glyph: string;
 
     constructor(x: number, y: number, width: number, height: number, totalDuration: number, gridWidth: number, gridHeight: number) {
         this.x = x;
@@ -19,9 +31,11 @@ class FadeCell {
         const seed = (x / width) * gridWidth + (y / height);
         // Random delay up to half the total transition time to ensure all cells can participate
         this.delay = seededRandom(seed) * (totalDuration / 2);
+        this.color = colorPalette[Math.floor(seededRandom(seed + 1) * colorPalette.length)];
+        this.glyph = charset.charAt(Math.floor(seededRandom(seed + 2) * charset.length));
     }
 
-    draw(ctx: CanvasRenderingContext2D, time: number, totalDuration: number) {
+    draw(ctx: CanvasRenderingContext2D, time: number, totalDuration: number, settings: VFXSettings) {
         const halfDuration = totalDuration / 2;
 
         const timeWithDelay = time - this.delay;
@@ -32,11 +46,11 @@ class FadeCell {
         if (fadeInDuration <=0) return;
 
         if (timeWithDelay < fadeInDuration) {
-            // Fade in to white
+            // Fade in
             const progress = timeWithDelay / fadeInDuration;
             opacity = Math.min(1, progress);
         } else {
-            // Fade out from white
+            // Fade out
             const fadeOutDuration = halfDuration;
             const progress = (timeWithDelay - fadeInDuration) / fadeOutDuration;
             opacity = 1 - Math.min(1, progress);
@@ -44,9 +58,26 @@ class FadeCell {
 
         opacity = Math.max(0, opacity);
         if (opacity <= 0) return;
+        
+        const { useRandomColors, drawGlyphs } = settings;
 
-        ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+        let r = 255, g = 255, b = 255;
+        if (useRandomColors) {
+            [r, g, b] = this.color;
+        }
+
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
         ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        if (drawGlyphs) {
+            ctx.font = `${this.height * 0.8}px "Source Code Pro", monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            // A darker color for the glyph for contrast
+            const glyphOpacity = opacity * 0.7;
+            ctx.fillStyle = `rgba(${r * 0.5}, ${g * 0.5}, ${b * 0.5}, ${glyphOpacity})`;
+            ctx.fillText(this.glyph, this.x + this.width / 2, this.y + this.height / 2);
+        }
     }
 }
 
@@ -62,6 +93,8 @@ export class FadeTransitionEffect implements VFXEffect {
     static effectName = "Fade Transition";
     static defaultSettings: VFXSettings = {
         gridDivisions: 20,
+        useRandomColors: false,
+        drawGlyphs: false,
     };
 
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
@@ -112,7 +145,7 @@ export class FadeTransitionEffect implements VFXEffect {
         if (!this.width || !this.height) return;
 
         this.cells.forEach(cell => {
-            cell.draw(ctx, this.currentTime, this.totalDuration);
+            cell.draw(ctx, this.currentTime, this.totalDuration, this.settings);
         });
     }
 
