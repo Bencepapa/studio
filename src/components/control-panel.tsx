@@ -44,6 +44,7 @@ import {
 import { ScrollArea } from "./ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Switch } from "./ui/switch";
+import { Textarea } from "./ui/textarea";
 
 interface ControlPanelProps {
   availableEffects: Record<string, VFXEffectClass>;
@@ -121,6 +122,23 @@ export function ControlPanel({
           </Select>
         </div>
       )
+    }
+
+    if (key === 'body') {
+      return (
+        <div key={key} className="space-y-2">
+          <Label htmlFor={key} className="capitalize text-xs">
+            {label}
+          </Label>
+          <Textarea
+            id={key}
+            value={value}
+            onChange={(e) => onSettingsChange({ [key]: e.target.value })}
+            className="h-32 font-code text-xs"
+            placeholder="Enter message body..."
+          />
+        </div>
+      );
     }
 
     if (typeof value === "boolean") {

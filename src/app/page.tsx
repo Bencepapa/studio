@@ -22,6 +22,8 @@ import { LevelUpEffect } from "@/effects/levelup";
 import { RedAlertEffect } from "@/effects/red-alert";
 import { ScannerEffect } from "@/effects/scanner";
 import { RadarScannerEffect } from "@/effects/radar-scanner";
+import { CyberGridEffect } from "@/effects/cyber-grid";
+import { IncomingMessageEffect } from "@/effects/incoming-message";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,6 +31,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const availableEffects: Record<string, VFXEffectClass> = {
   levelup: LevelUpEffect,
+  "incoming-message": IncomingMessageEffect,
+  "cyber-grid": CyberGridEffect,
   "jack-in": JackInEffect,
   matrix: MatrixEffect,
   healing: HealingEffect,
