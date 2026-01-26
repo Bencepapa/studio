@@ -37,12 +37,14 @@ export class DamageEffect implements VFXEffect {
   private height = 0;
   private noiseCanvas: HTMLCanvasElement;
   private noiseGenerated = false;
+  private currentTime = 0;
 
   static effectName = "Damage";
   static defaultSettings: VFXSettings = {
     cloudIntensity: 5,
     scratchCount: 10,
     hue: 0,
+    pulseSpeed: 5,
   };
 
   constructor() {
@@ -91,6 +93,7 @@ export class DamageEffect implements VFXEffect {
   }
 
   update(time: number, deltaTime: number, settings: VFXSettings) {
+    this.currentTime = time;
     if (!this.canvas) return;
     const rect = this.canvas.getBoundingClientRect();
 
@@ -114,11 +117,16 @@ export class DamageEffect implements VFXEffect {
     
     const hue = this.settings.hue as number;
     const cloudIntensity = this.settings.cloudIntensity as number;
+    const pulseSpeed = this.settings.pulseSpeed as number;
+
+    const pulse = (Math.sin(this.currentTime * pulseSpeed) + 1) / 2; // 0 to 1
+    const pulseFactor = mapRange(pulse, 0, 1, 0.6, 1); // pulse between 0.6 and 1
+
 
     // Create a gradient for the base color
     const gradient = ctx.createRadialGradient(this.width / 2, this.height / 2, 0, this.width / 2, this.height / 2, Math.max(this.width, this.height) * 0.7);
-    gradient.addColorStop(0, `hsla(${hue}, 90%, 55%, 0.2)`);
-    gradient.addColorStop(1, `hsla(${hue}, 90%, 45%, 0.6)`);
+    gradient.addColorStop(0, `hsla(${hue}, 90%, 55%, ${0.2 * pulseFactor})`);
+    gradient.addColorStop(1, `hsla(${hue}, 90%, 45%, ${0.6 * pulseFactor})`);
     
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = gradient;
@@ -126,7 +134,7 @@ export class DamageEffect implements VFXEffect {
 
     // Draw cloudy effect using noise texture
     ctx.globalCompositeOperation = 'overlay';
-    ctx.globalAlpha = mapRange(cloudIntensity, 0, 20, 0, 0.8);
+    ctx.globalAlpha = mapRange(cloudIntensity, 0, 20, 0, 0.8) * pulseFactor;
     ctx.filter = `blur(${cloudIntensity}px)`;
     ctx.drawImage(this.noiseCanvas, 0, 0, this.width, this.height);
     ctx.filter = 'none';
@@ -135,8 +143,8 @@ export class DamageEffect implements VFXEffect {
 
 
     // Draw scratches
-    const opacity = mapRange(cloudIntensity, 0, 20, 0.1, 0.8);
-    this.scratches.forEach(s => s.draw(ctx, this.width, opacity));
+    const scratchOpacity = mapRange(cloudIntensity, 0, 20, 0.1, 0.8) * pulseFactor;
+    this.scratches.forEach(s => s.draw(ctx, this.width, scratchOpacity));
   }
 
   getSettings(): VFXSettings {
