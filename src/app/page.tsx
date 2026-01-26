@@ -2,6 +2,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import {
   SidebarProvider,
   Sidebar,
@@ -38,6 +39,7 @@ import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 const availableEffects: Record<string, VFXEffectClass> = {
   "data-cubes": DataCubesEffect,
@@ -69,6 +71,8 @@ const backgroundClasses: Record<string, string> = {
   default: "bg-background",
   checkerboard: "bg-checkerboard",
   light: "bg-white",
+  'game-ui': "bg-background",
+  'cyber-matrix': "bg-background",
 };
 
 export default function Home() {
@@ -117,6 +121,9 @@ export default function Home() {
       ...(settings[effectKey] || {}),
     }), [CurrentEffect, settings, effectKey]);
 
+  const gameUiBg = PlaceHolderImages.find(img => img.id === 'game-ui-background');
+  const cyberMatrixBg = PlaceHolderImages.find(img => img.id === 'cyber-matrix-background');
+
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon" variant="sidebar">
@@ -159,6 +166,24 @@ export default function Home() {
           </div>
         </header>
         <main className={cn("flex-1 relative bg-background overflow-hidden", backgroundClasses[background])}>
+          {background === 'game-ui' && gameUiBg && (
+            <Image
+              src={gameUiBg.imageUrl}
+              alt={gameUiBg.description}
+              fill
+              className="object-cover"
+              data-ai-hint={gameUiBg.imageHint}
+            />
+          )}
+          {background === 'cyber-matrix' && cyberMatrixBg && (
+            <Image
+              src={cyberMatrixBg.imageUrl}
+              alt={cyberMatrixBg.description}
+              fill
+              className="object-cover"
+              data-ai-hint={cyberMatrixBg.imageHint}
+            />
+          )}
           <EffectPlayer
             key={effectKey}
             effect={CurrentEffect}

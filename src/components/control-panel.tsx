@@ -304,6 +304,8 @@ export function ControlPanel({
               <SelectItem value="default">Default</SelectItem>
               <SelectItem value="checkerboard">Checkerboard</SelectItem>
               <SelectItem value="light">Light</SelectItem>
+              <SelectItem value="game-ui">Game UI</SelectItem>
+              <SelectItem value="cyber-matrix">Cyber Matrix</SelectItem>
             </SelectContent>
           </Select>
         </SidebarGroup>
