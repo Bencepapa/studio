@@ -20,6 +20,7 @@ class FadeCell {
     delay: number;
     color: number[];
     glyph: string;
+    glyphColor: number[];
 
     constructor(x: number, y: number, width: number, height: number, totalDuration: number, gridWidth: number, gridHeight: number) {
         this.x = x;
@@ -33,6 +34,7 @@ class FadeCell {
         this.delay = seededRandom(seed) * (totalDuration / 2);
         this.color = colorPalette[Math.floor(seededRandom(seed + 1) * colorPalette.length)];
         this.glyph = charset.charAt(Math.floor(seededRandom(seed + 2) * charset.length));
+        this.glyphColor = colorPalette[Math.floor(seededRandom(seed + 3) * colorPalette.length)];
     }
 
     draw(ctx: CanvasRenderingContext2D, time: number, totalDuration: number, settings: VFXSettings) {
@@ -70,12 +72,21 @@ class FadeCell {
         ctx.fillRect(this.x, this.y, this.width, this.height);
 
         if (drawGlyphs) {
-            ctx.font = `${this.height * 0.8}px "Source Code Pro", monospace`;
+            ctx.font = `bold ${this.height * 0.8}px "Source Code Pro", monospace`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            // A darker color for the glyph for contrast
-            const glyphOpacity = opacity * 0.7;
-            ctx.fillStyle = `rgba(${r * 0.5}, ${g * 0.5}, ${b * 0.5}, ${glyphOpacity})`;
+            
+            let glyphR, glyphG, glyphB;
+
+            if (useRandomColors) {
+                [glyphR, glyphG, glyphB] = this.glyphColor;
+            } else {
+                // If not using random colors, background is white. Use black for glyph.
+                [glyphR, glyphG, glyphB] = [0, 0, 0];
+            }
+
+            const glyphOpacity = opacity * 0.85;
+            ctx.fillStyle = `rgba(${glyphR}, ${glyphG}, ${glyphB}, ${glyphOpacity})`;
             ctx.fillText(this.glyph, this.x + this.width / 2, this.y + this.height / 2);
         }
     }
