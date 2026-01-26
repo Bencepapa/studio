@@ -116,6 +116,7 @@ export class CompilerEffect implements VFXEffect {
         compilingMessage: "Compiling...",
         doneMessage: "ACCESS GRANTED",
         blinkDoneMessage: true,
+        keepCharsOnTop: false,
         hue: 128,
     };
     
@@ -208,7 +209,9 @@ export class CompilerEffect implements VFXEffect {
         ctx.font = '16px "Source Code Pro", monospace';
         ctx.textAlign = 'left';
         
-        if (this.phase === 'writing') {
+        const { keepCharsOnTop } = this.settings;
+
+        if (this.phase === 'writing' || keepCharsOnTop) {
              this.codeChars.forEach(c => c.draw(ctx, this.currentTime, this.settings));
         }
        
