@@ -21,20 +21,20 @@ class SymbolParticle {
     this.canvasHeight = canvasHeight;
     this.speed = speed;
     this.value = charset.charAt(Math.floor(Math.random() * charset.length));
-    this.z = randomRange(100, 1000);
+    this.z = randomRange(1, 1000);
     this.x = randomRange(-this.canvasWidth, this.canvasWidth);
     this.y = randomRange(-this.canvasHeight, this.canvasHeight);
   }
 
   reset() {
-    this.z = randomRange(500, 1000);
+    this.z = 1000;
     this.x = randomRange(-this.canvasWidth, this.canvasWidth);
     this.y = randomRange(-this.canvasHeight, this.canvasHeight);
     this.value = charset.charAt(Math.floor(Math.random() * charset.length));
   }
 
   update(deltaTime: number) {
-    this.z -= this.speed * deltaTime * 10;
+    this.z -= this.speed * deltaTime * 5; // Reduced multiplier for more control via speed setting
     if (this.z < 1) {
       this.reset();
     }
@@ -45,16 +45,19 @@ class SymbolParticle {
     const sx = this.x * scale + this.canvasWidth / 2;
     const sy = this.y * scale + this.canvasHeight / 2;
 
-    if (sx < 0 || sx > this.canvasWidth || sy < 0 || sy > this.canvasHeight) {
+    const opacity = mapRange(this.z, 0, 1000, 1, 0.1);
+
+    if (opacity <= 0.1 || scale <= 0) { // Culling
       return;
     }
 
-    const size = mapRange(this.z, 0, 1000, 20, 1);
-    const opacity = mapRange(this.z, 0, 1000, 1, 0);
-
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.scale(scale, scale);
+    
     ctx.fillStyle = `hsla(${hue}, 80%, 70%, ${opacity})`;
-    ctx.font = `${size}px "Source Code Pro", monospace`;
-    ctx.fillText(this.value, sx, sy);
+    ctx.fillText(this.value, 0, 0);
+    ctx.restore();
   }
 }
 
@@ -62,12 +65,12 @@ export class JackInEffect implements VFXEffect {
   private particles: SymbolParticle[] = [];
   private settings: VFXSettings = JackInEffect.defaultSettings;
   private canvas: HTMLCanvasElement | null = null;
-  private fov = 250;
+  private fov = 300; // Constant FOV for consistent perspective
 
   static effectName = "Jack In";
   static defaultSettings: VFXSettings = {
-    particleCount: 200,
-    speed: 10,
+    particleCount: 400,
+    speed: 30, // Higher speed for more dynamic feel
     hue: 289,
   };
 
@@ -76,8 +79,6 @@ export class JackInEffect implements VFXEffect {
     const rect = canvas.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
-
-    this.fov = width * 0.8;
 
     if (width === 0 || height === 0) return;
 
@@ -113,6 +114,9 @@ export class JackInEffect implements VFXEffect {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
+    // Set font once for all particles. Scaling is handled by transforms.
+    ctx.font = `32px "Source Code Pro", monospace`;
+
     this.particles.forEach(p => p.draw(ctx, this.fov, hue));
   }
 
