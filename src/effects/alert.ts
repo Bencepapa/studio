@@ -58,6 +58,7 @@ class AlertBox {
     draw(ctx: CanvasRenderingContext2D, settings: VFXSettings) {
         const hue = settings.hue as number;
         const baseOpacity = settings.opacity as number;
+        const warningMessage = settings.warningMessage as string;
 
         const finalOpacity = this.opacity * baseOpacity;
 
@@ -93,12 +94,26 @@ class AlertBox {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Exclamation mark
+        // Content
         ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${finalOpacity})`;
-        ctx.font = 'bold 50px "Space Grotesk", sans-serif';
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('!', this.x + this.boxWidth / 2, this.y + this.boxHeight / 2 + 3); // Small adjustment for centering
+
+        if (warningMessage && warningMessage.length > 0) {
+            ctx.font = 'bold 36px "Space Grotesk", sans-serif';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('!', this.x + this.boxWidth / 2, this.y + this.boxHeight / 2 - 12);
+            
+            ctx.font = 'bold 14px "Space Grotesk", sans-serif';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(warningMessage.toUpperCase(), this.x + this.boxWidth / 2, this.y + this.boxHeight / 2 + 20);
+
+        } else {
+            // Exclamation mark
+            ctx.font = 'bold 50px "Space Grotesk", sans-serif';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('!', this.x + this.boxWidth / 2, this.y + this.boxHeight / 2 + 3); // Small adjustment for centering
+        }
+
 
         ctx.restore();
     }
@@ -116,6 +131,7 @@ export class AlertEffect implements VFXEffect {
     static defaultSettings: VFXSettings = {
         hue: 50, // Yellow
         opacity: 0.9,
+        warningMessage: 'SYSTEM ALERT',
     };
     
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
