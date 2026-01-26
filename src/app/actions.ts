@@ -27,6 +27,7 @@ const effectFileMap: { [key: string]: string } = {
   "fade-transition": "fade-transition.ts",
   "ribbon-transition": "ribbon-transition.ts",
   "cpu-trace": "cpu-trace.ts",
+  "system-overload": "system-overload.ts",
 };
 
 export async function generateDependenciesForEffect(effectKey: string) {

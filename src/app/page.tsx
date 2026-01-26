@@ -33,6 +33,7 @@ import { ArcadeStartupEffect } from "@/effects/arcade-startup";
 import { PCStartupEffect } from "@/effects/pc-startup";
 import { LinuxStartupEffect } from "@/effects/linux-startup";
 import { CPUTraceEffect } from "@/effects/cpu-trace";
+import { SystemOverloadEffect } from "@/effects/system-overload";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const availableEffects: Record<string, VFXEffectClass> = {
   "data-cubes": DataCubesEffect,
   "cpu-trace": CPUTraceEffect,
+  "system-overload": SystemOverloadEffect,
   "pc-startup": PCStartupEffect,
   "arcade-startup": ArcadeStartupEffect,
   "c64-startup": C64StartupEffect,
@@ -70,7 +72,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("data-cubes");
+  const [effectKey, setEffectKey] = React.useState<string>("system-overload");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);
