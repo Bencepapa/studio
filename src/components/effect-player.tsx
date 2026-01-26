@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { type VFXEffect, type VFXEffectClass, type VFXSettings } from "@/effects/types";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 interface EffectPlayerProps {
   effect: VFXEffectClass;
@@ -28,7 +27,6 @@ export function EffectPlayer({
   const animationFrameIdRef = React.useRef<number>();
   const lastTimeRef = React.useRef<number>(0);
   const internalTimeRef = React.useRef<number>(time);
-  const isMobile = useIsMobile();
 
   const resizeCanvas = React.useCallback(() => {
     const canvas = canvasRef.current;
@@ -41,17 +39,16 @@ export function EffectPlayer({
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
     
-    // Re-initialize effect on resize to adapt to new dimensions
     if (effectInstanceRef.current) {
       effectInstanceRef.current.init(canvas, settings);
     }
   }, [settings]);
 
-  // Sync external time to internal time when it changes (e.g., from slider)
+  // Sync time from props, which is the source of truth from the parent
   React.useEffect(() => {
     internalTimeRef.current = time;
   }, [time]);
-
+  
   // Effect initialization and cleanup
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -68,22 +65,26 @@ export function EffectPlayer({
     };
   }, [Effect, settings, resizeCanvas]);
 
-  // Animation loop
-  React.useEffect(() => {
-    const renderFrame = (currentTime: number, deltaTime = 0) => {
-       const ctx = canvasRef.current?.getContext("2d");
-       const effect = effectInstanceRef.current;
-       if (ctx && effect) {
-         const dpr = window.devicePixelRatio || 1;
-         ctx.save();
-         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-         ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-         ctx.restore();
-         effect.update(currentTime, deltaTime, settings);
-         effect.render(ctx);
-       }
-    }
+  const renderFrame = React.useCallback((currentTime: number, deltaTime = 0) => {
+     const ctx = canvasRef.current?.getContext("2d");
+     const effect = effectInstanceRef.current;
+     if (ctx && effect) {
+       const dpr = window.devicePixelRatio || 1;
+       ctx.save();
+       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+       ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
+       ctx.restore();
+       effect.update(currentTime, deltaTime, settings);
+       effect.render(ctx);
+     }
+  }, [settings]);
 
+  // Animation loop for PLAYING state
+  React.useEffect(() => {
+    if (!isPlaying) {
+      return;
+    }
+    
     const animate = (timestamp: number) => {
       if (lastTimeRef.current === 0) {
         lastTimeRef.current = timestamp;
@@ -91,7 +92,6 @@ export function EffectPlayer({
       const deltaTime = (timestamp - lastTimeRef.current) / 1000;
       lastTimeRef.current = timestamp;
 
-      // Update time
       let newTime = internalTimeRef.current + deltaTime * speed;
       if (newTime > duration) {
         newTime %= duration;
@@ -99,33 +99,28 @@ export function EffectPlayer({
         newTime = duration + (newTime % duration);
         if (newTime === duration) newTime = 0;
       }
-      internalTimeRef.current = newTime;
-
-      // Propagate time update to parent
-      onTimeUpdate(newTime);
       
-      renderFrame(internalTimeRef.current, deltaTime * speed);
-
-      if (isPlaying) {
-        animationFrameIdRef.current = requestAnimationFrame(animate);
-      }
+      onTimeUpdate(newTime);
+      animationFrameIdRef.current = requestAnimationFrame(animate);
     };
 
-    if (isPlaying) {
-      lastTimeRef.current = 0; // Reset lastTime to avoid large deltaTime jump
-      animationFrameIdRef.current = requestAnimationFrame(animate);
-    } else {
-      // If paused, render the current frame based on the slider time
-      renderFrame(internalTimeRef.current);
-    }
+    lastTimeRef.current = 0;
+    animationFrameIdRef.current = requestAnimationFrame(animate);
 
     return () => {
       if (animationFrameIdRef.current) {
         cancelAnimationFrame(animationFrameIdRef.current);
       }
     };
-  }, [isPlaying, speed, settings, duration, onTimeUpdate]);
+  }, [isPlaying, speed, duration, onTimeUpdate]);
   
+  // Render frames based on `time` prop. This handles both playing and paused states.
+  React.useEffect(() => {
+    // We pass a small non-zero delta time to ensure effects that might rely on it don't break.
+    // For purely time-based effects, this value is ignored.
+    renderFrame(time, 1/60); 
+  }, [time, renderFrame]);
+
   // Resize handler
   React.useEffect(() => {
     window.addEventListener("resize", resizeCanvas);

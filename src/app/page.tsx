@@ -49,8 +49,9 @@ export default function Home() {
 
   const handleEffectChange = (newEffectKey: string) => {
     setEffectKey(newEffectKey);
-    // Reset time when effect changes
+    // Reset time and speed when effect changes
     setTime(0);
+    setSpeed(1);
   };
 
   const currentSettings = React.useMemo(() => ({

@@ -17,6 +17,7 @@ class SymbolParticle {
   timeOffset: number;
   charChangeRate: number;
   initialCharIndex: number;
+  cycleDuration: number;
 
   canvasWidth: number;
   canvasHeight: number;
@@ -30,6 +31,7 @@ class SymbolParticle {
     this.timeOffset = randomRange(0, 100);
     this.charChangeRate = randomRange(5, 15);
     this.initialCharIndex = Math.floor(Math.random() * charset.length);
+    this.cycleDuration = randomRange(1, 4);
 
     this.x = 0;
     this.y = 0;
@@ -40,11 +42,12 @@ class SymbolParticle {
   update(time: number, deltaTime: number, settings: VFXSettings) {
     const speed = settings.speed as number;
 
-    const cycleDuration = 1000 / (speed / 3);
+    // Use a combination of a base cycle duration and the speed setting
+    const effectiveCycleDuration = this.cycleDuration / (speed / 10);
     const effectiveTime = time + this.timeOffset;
-    const timeInCycle = effectiveTime % cycleDuration;
+    const timeInCycle = effectiveTime % effectiveCycleDuration;
     
-    this.z = 1000 - (timeInCycle / cycleDuration) * 1000;
+    this.z = 1000 - (timeInCycle / effectiveCycleDuration) * 1000;
 
     const charIndex = (this.initialCharIndex + Math.floor(effectiveTime * this.charChangeRate)) % charset.length;
     this.value = charset.charAt(charIndex);
