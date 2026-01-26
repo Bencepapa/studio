@@ -28,6 +28,7 @@ const effectFileMap: { [key: string]: string } = {
   "ribbon-transition": "ribbon-transition.ts",
   "cpu-trace": "cpu-trace.ts",
   "system-overload": "system-overload.ts",
+  "cyberdeck-startup": "cyberdeck-startup.ts",
 };
 
 export async function generateDependenciesForEffect(effectKey: string) {

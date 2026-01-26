@@ -36,6 +36,7 @@ import { LinuxStartupEffect } from "@/effects/linux-startup";
 import { CPUTraceEffect } from "@/effects/cpu-trace";
 import { SystemOverloadEffect } from "@/effects/system-overload";
 import { SpeechBubbleEffect } from "@/effects/speech-bubble";
+import { CyberdeckStartupEffect } from "@/effects/cyberdeck-startup";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { GameUiBackground } from "@/components/game-ui-background";
 
 const availableEffects: Record<string, VFXEffectClass> = {
+  "cyberdeck-startup": CyberdeckStartupEffect,
   "data-cubes": DataCubesEffect,
   "cpu-trace": CPUTraceEffect,
   "system-overload": SystemOverloadEffect,
@@ -79,7 +81,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("system-overload");
+  const [effectKey, setEffectKey] = React.useState<string>("cyberdeck-startup");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);
