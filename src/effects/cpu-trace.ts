@@ -52,7 +52,7 @@ class BoardComponent {
     getFreePin(): Pin | null {
         const freePins = this.pins.filter(p => !p.isOccupied);
         if (freePins.length === 0) return null;
-        const pin = freePins[Math.floor(Math.random() * freePins.length)];
+        const pin = freePins[Math.floor(seededRandom(this.x + this.y + freePins.length) * freePins.length)];
         return pin;
     }
 
@@ -80,16 +80,21 @@ class BoardComponent {
 
 class CPUComponent extends BoardComponent {
     glyph: string;
+    subGlyph: string;
 
     constructor(x: number, y: number, width: number, height: number, pinCountPerSide: number) {
         super(x, y, width, height);
         this.glyph = katakana.charAt(Math.floor(seededRandom(x + y) * katakana.length));
+        const subGlyphNumber = Math.floor(seededRandom(x + y + 1) * 256);
+        this.subGlyph = `0x${subGlyphNumber.toString(16).toUpperCase().padStart(2, '0')}`;
 
         if (pinCountPerSide < 1) return;
+        
+        const safePinCount = Math.max(2, pinCountPerSide);
 
-        const pinSpacingX = (width - 1) / (pinCountPerSide -1);
-        const pinSpacingY = (height - 1) / (pinCountPerSide - 1);
-
+        const pinSpacingX = (width - 1) / (safePinCount - 1);
+        const pinSpacingY = (height - 1) / (safePinCount - 1);
+        
         for (let i = 0; i < pinCountPerSide; i++) {
             const pinX = x + Math.round(i * pinSpacingX);
             const pinY = y + Math.round(i * pinSpacingY);
@@ -99,8 +104,11 @@ class CPUComponent extends BoardComponent {
              this.pins.push(new Pin(pinX, y + height, 's'));
             
              // Left & Right pins
-             this.pins.push(new Pin(x - 1, pinY, 'w'));
-             this.pins.push(new Pin(x + width, pinY, 'e'));
+             // Only add side pins if they are not at the corners to avoid crowding
+             if (i > 0 && i < pinCountPerSide -1) {
+                 this.pins.push(new Pin(x - 1, pinY, 'w'));
+                 this.pins.push(new Pin(x + width, pinY, 'e'));
+             }
         }
     }
     
@@ -113,77 +121,88 @@ class CPUComponent extends BoardComponent {
         const pw = this.width * GRID_CELL_SIZE;
         const ph = this.height * GRID_CELL_SIZE;
         
-        const glyphSize = Math.min(pw, ph) * 0.7;
+        // Main Glyph
+        const glyphSize = Math.min(pw, ph) * 0.6;
         ctx.font = `bold ${glyphSize}px "Source Code Pro", monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
+        const mainGlyphY = py + ph / 2 - glyphSize * 0.1;
+
         // Emboss effect
         ctx.fillStyle = `hsl(${hue}, 80%, 20%)`; // Darker shadow
-        ctx.fillText(this.glyph, px + pw / 2 + 2, py + ph / 2 + 2);
+        ctx.fillText(this.glyph, px + pw / 2 + 2, mainGlyphY + 2);
 
         ctx.fillStyle = `hsl(${hue}, 80%, 40%)`; // Main color
-        ctx.fillText(this.glyph, px + pw / 2, py + ph / 2);
+        ctx.fillText(this.glyph, px + pw / 2, mainGlyphY);
+
+        // Sub Glyph (8-bit number)
+        const subGlyphSize = glyphSize * 0.3;
+        ctx.font = `bold ${subGlyphSize}px "Source Code Pro", monospace`;
+        const subGlyphY = mainGlyphY + glyphSize * 0.5;
+
+        // Emboss effect for sub-glyph
+        ctx.fillStyle = `hsl(${hue}, 80%, 20%)`; // Darker shadow
+        ctx.fillText(this.subGlyph, px + pw / 2 + 1, subGlyphY + 1);
+        
+        ctx.fillStyle = `hsl(${hue}, 80%, 40%)`; // Main color
+        ctx.fillText(this.subGlyph, px + pw / 2, subGlyphY);
     }
 }
 
 class ICComponent extends BoardComponent {
-    pixelArt: string | null = null;
+    glyph: string | null = null;
     
     constructor(x: number, y: number, width: number, height: number, pinCountPerSide: number) {
         super(x, y, width, height);
         
         if (pinCountPerSide < 1) return;
-
+        
+        const safePinCount = Math.max(2, pinCountPerSide);
         const isVertical = height > width;
 
         if (isVertical) {
-            const pinSpacing = (height - 1) / (pinCountPerSide - 1);
+            const pinSpacing = (height - 1) / (safePinCount - 1);
             for (let i = 0; i < pinCountPerSide; i++) {
-                const pinY = y + (i * pinSpacing);
-                this.pins.push(new Pin(x - 1, Math.round(pinY), 'w'));
-                this.pins.push(new Pin(x + width, Math.round(pinY), 'e'));
+                const pinY = y + Math.round(i * pinSpacing);
+                this.pins.push(new Pin(x - 1, pinY, 'w'));
+                this.pins.push(new Pin(x + width, pinY, 'e'));
             }
         } else {
-            const pinSpacing = (width - 1) / (pinCountPerSide - 1);
+            const pinSpacing = (width - 1) / (safePinCount - 1);
             for (let i = 0; i < pinCountPerSide; i++) {
-                const pinX = x + (i * pinSpacing);
-                this.pins.push(new Pin(Math.round(pinX), y - 1, 'n'));
-                this.pins.push(new Pin(Math.round(pinX), y + height, 's'));
+                const pinX = x + Math.round(i * pinSpacing);
+                this.pins.push(new Pin(pinX, y - 1, 'n'));
+                this.pins.push(new Pin(pinX, y + height, 's'));
             }
         }
         
-        if (width >= 5 && height >= 5) {
-            let art = '';
-            for (let i = 0; i < 25; i++) {
-                art += seededRandom(x + y + i) > 0.5 ? '1' : '0';
-            }
-            this.pixelArt = art;
+        if (width >= 4 && height >= 4) {
+            this.glyph = katakana.charAt(Math.floor(seededRandom(x + y) * katakana.length));
         }
     }
     
     draw(ctx: CanvasRenderingContext2D, settings: VFXSettings) {
         super.draw(ctx, settings);
 
-        if (this.pixelArt) {
+        if (this.glyph) {
             const { hue } = settings;
             const px = this.x * GRID_CELL_SIZE;
             const py = this.y * GRID_CELL_SIZE;
             const pw = this.width * GRID_CELL_SIZE;
             const ph = this.height * GRID_CELL_SIZE;
         
-            const pixelSize = Math.min(pw, ph) / 8;
-            const startX = px + (pw - pixelSize * 5) / 2;
-            const startY = py + (ph - pixelSize * 5) / 2;
-            ctx.fillStyle = `hsl(${hue}, 80%, 45%)`;
+            const glyphSize = Math.min(pw, ph) * 0.7;
+            ctx.font = `bold ${glyphSize}px "Source Code Pro", monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Emboss effect
+            ctx.fillStyle = `hsl(${hue}, 80%, 20%)`; // Darker shadow
+            ctx.fillText(this.glyph, px + pw / 2 + 2, py + ph / 2 + 2);
 
-            for (let i = 0; i < 25; i++) {
-                if (this.pixelArt[i] === '1') {
-                    const drawX = startX + (i % 5) * pixelSize;
-                    const drawY = startY + Math.floor(i / 5) * pixelSize;
-                    ctx.fillRect(drawX, drawY, pixelSize, pixelSize);
-                }
-            }
+            ctx.fillStyle = `hsl(${hue}, 80%, 40%)`; // Main color
+            ctx.fillText(this.glyph, px + pw / 2, py + ph / 2);
         }
     }
 }
@@ -268,7 +287,7 @@ export class CPUTraceEffect implements VFXEffect {
     // A* pathfinding algorithm
     private aStar(startPin: Pin, endPin: Pin): { x: number, y: number }[] | null {
 
-        const getPathfindingEndpoint = (pin: Pin, gridWidth: number, gridHeight: number) => {
+        const getPathfindingEndpoint = (pin: Pin) => {
             let x = pin.x, y = pin.y;
             switch (pin.direction) {
                 case 'n': y -= 1; break;
@@ -276,12 +295,12 @@ export class CPUTraceEffect implements VFXEffect {
                 case 'w': x -= 1; break;
                 case 'e': x += 1; break;
             }
-            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight) return null;
+            if (x < 0 || x >= this.gridWidth || y < 0 || y >= this.gridHeight) return null;
             return { x, y };
         };
 
-        const startPos = getPathfindingEndpoint(startPin, this.gridWidth, this.gridHeight);
-        const endPos = getPathfindingEndpoint(endPin, this.gridWidth, this.gridHeight);
+        const startPos = getPathfindingEndpoint(startPin);
+        const endPos = getPathfindingEndpoint(endPin);
         
         if (!startPos || !endPos) return null;
 
@@ -316,8 +335,18 @@ export class CPUTraceEffect implements VFXEffect {
                     curr = curr.parent;
                 }
                 const finalPath = path.reverse();
+                
+                // Add points to enforce pin direction
+                const startDir = startPin.direction;
+                const pathStart = finalPath[0];
+                if (startDir === 'n' && pathStart.y < startPin.y) finalPath.unshift({x: startPin.x, y: startPin.y -1});
+                if (startDir === 's' && pathStart.y > startPin.y) finalPath.unshift({x: startPin.x, y: startPin.y +1});
+                if (startDir === 'w' && pathStart.x < startPin.x) finalPath.unshift({x: startPin.x-1, y: startPin.y});
+                if (startDir === 'e' && pathStart.x > startPin.x) finalPath.unshift({x: startPin.x+1, y: startPin.y});
+
                 finalPath.unshift({ x: startPin.x, y: startPin.y });
                 finalPath.push({ x: endPin.x, y: endPin.y });
+
                 return finalPath;
             }
 
