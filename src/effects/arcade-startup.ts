@@ -159,7 +159,7 @@ export class ArcadeStartupEffect implements VFXEffect {
         const textX = this.width * 0.1;
         let currentY = this.height * 0.2;
         const lineHeight = Math.min(this.width, this.height) / 30 * 1.5;
-        const statusX = textX + 300;
+        const statusX = textX + 250;
         
         this.testItems.forEach(item => {
             if (timeInCycle >= item.appearTime) {
@@ -173,10 +173,7 @@ export class ArcadeStartupEffect implements VFXEffect {
 
                 // Show status after a delay
                 if (timeSinceAppear > 0.5 && item.status) {
-                    const statusBlink = Math.floor(timeSinceAppear * 5) % 2 === 0;
-                    if (statusBlink) {
-                        ctx.fillText(item.status, statusX, currentY);
-                    }
+                    ctx.fillText(item.status, statusX, currentY);
                 }
                 currentY += lineHeight;
             }

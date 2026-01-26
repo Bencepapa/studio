@@ -136,8 +136,8 @@ export class LinuxStartupEffect implements VFXEffect {
         this.settings = { ...LinuxStartupEffect.defaultSettings, ...settings };
         
         this.logLines = [];
-        let time = 0.5;
-        const timeStep = 0.1;
+        let time = 0.5 / 3;
+        const timeStep = 0.1 / 3;
         
         logMessages.forEach((msg, index) => {
             let status: 'OK' | 'FAILED' | 'NONE' = 'NONE';
@@ -160,12 +160,12 @@ export class LinuxStartupEffect implements VFXEffect {
                  text = msg.replace(': FAILED', '');
             }
 
-            const lineDuration = (text.length / (this.settings.typingSpeed as number)) + timeStep;
+            const lineDuration = (text.length / ((this.settings.typingSpeed as number) * 3)) + timeStep;
             this.logLines.push({ text, status, appearTime: time });
             time += lineDuration;
         });
 
-        this.totalDuration = time + 2.0; // Add 2 seconds at the end
+        this.totalDuration = time + (2.0/3); // Add hold at the end
     }
 
     destroy() {}
@@ -244,7 +244,7 @@ export class LinuxStartupEffect implements VFXEffect {
             const linesToScroll = visibleLines.length - maxLines;
             const lastLine = visibleLines[visibleLines.length-1];
             const timeSinceLastLineStarted = timeInCycle - lastLine.appearTime;
-            const lastLineTypingDuration = lastLine.text.length / (typingSpeed as number);
+            const lastLineTypingDuration = lastLine.text.length / ((typingSpeed as number) * 3);
 
             if (timeSinceLastLineStarted > lastLineTypingDuration) {
                  scrollOffset = linesToScroll * lineHeight;
@@ -264,14 +264,14 @@ export class LinuxStartupEffect implements VFXEffect {
 
             // Typing effect for the text
             const timeSinceAppear = timeInCycle - line.appearTime;
-            const charsToShow = Math.floor(timeSinceAppear * (typingSpeed as number));
+            const charsToShow = Math.floor(timeSinceAppear * (typingSpeed as number) * 3);
             const textToDraw = line.text.substring(0, charsToShow);
 
             ctx.fillStyle = `hsl(${defaultHue as number}, 30%, 70%)`;
             ctx.fillText(`[ ${line.appearTime.toFixed(4)} ] ${textToDraw}`, this.width * 0.05, yPos);
 
             // Draw status after text is fully typed
-            if (line.status !== 'NONE' && timeSinceAppear > (line.text.length / (typingSpeed as number))) {
+            if (line.status !== 'NONE' && timeSinceAppear > (line.text.length / ((typingSpeed as number) * 3))) {
                  ctx.fillText('[', statusColumnX, yPos);
                  if (line.status === 'OK') {
                     ctx.fillStyle = `hsl(${successHue as number}, 70%, 60%)`;
