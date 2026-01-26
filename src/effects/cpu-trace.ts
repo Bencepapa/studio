@@ -78,18 +78,20 @@ class CPUComponent extends BoardComponent {
     constructor(x: number, y: number, width: number, height: number, pinCountPerSide: number) {
         super(x, y, width, height);
         
-        const pinSpacingX = Math.floor(width / (pinCountPerSide + 1));
-        const pinSpacingY = Math.floor(height / (pinCountPerSide + 1));
+        const pinSpacingX = width / (pinCountPerSide + 1);
+        const pinSpacingY = height / (pinCountPerSide + 1);
 
         // Top & Bottom pins
         for (let i = 1; i <= pinCountPerSide; i++) {
-            this.pins.push(new Pin(x + i * pinSpacingX, y - 1));
-            this.pins.push(new Pin(x + i * pinSpacingX, y + height));
+            const pinX = x + Math.round(i * pinSpacingX);
+            this.pins.push(new Pin(pinX, y - 1));
+            this.pins.push(new Pin(pinX, y + height));
         }
         // Left & Right pins
         for (let i = 1; i <= pinCountPerSide; i++) {
-            this.pins.push(new Pin(x - 1, y + i * pinSpacingY));
-            this.pins.push(new Pin(x + width, y + i * pinSpacingY));
+            const pinY = y + Math.round(i * pinSpacingY);
+            this.pins.push(new Pin(x - 1, pinY));
+            this.pins.push(new Pin(x + width, pinY));
         }
     }
 }
@@ -100,16 +102,18 @@ class ICComponent extends BoardComponent {
 
         const isVertical = height > width;
         if (isVertical) {
-            const pinSpacing = Math.floor(height / (pinCountPerSide + 1));
+            const pinSpacing = height / (pinCountPerSide + 1);
             for (let i = 1; i <= pinCountPerSide; i++) {
-                this.pins.push(new Pin(x - 1, y + i * pinSpacing));
-                this.pins.push(new Pin(x + width, y + i * pinSpacing));
+                const pinY = y + Math.round(i * pinSpacing);
+                this.pins.push(new Pin(x - 1, pinY));
+                this.pins.push(new Pin(x + width, pinY));
             }
         } else {
-            const pinSpacing = Math.floor(width / (pinCountPerSide + 1));
+            const pinSpacing = width / (pinCountPerSide + 1);
             for (let i = 1; i <= pinCountPerSide; i++) {
-                this.pins.push(new Pin(x + i * pinSpacing, y - 1));
-                this.pins.push(new Pin(x + i * pinSpacing, y + height));
+                const pinX = x + Math.round(i * pinSpacing);
+                this.pins.push(new Pin(pinX, y - 1));
+                this.pins.push(new Pin(pinX, y + height));
             }
         }
     }
@@ -323,9 +327,10 @@ export class CPUTraceEffect implements VFXEffect {
                 const icY = Math.floor(seededRandom(i * attempts + 3) * (maxY - 1)) + 1;
 
                 let overlaps = false;
-                for (let x = icX; x < icX + icWidth; x++) {
-                    for (let y = icY; y < icY + icHeight; y++) {
-                        if (this.grid[x][y] === 1) {
+                // check a slightly larger area to ensure spacing between components
+                for (let x = icX - 1; x < icX + icWidth + 1; x++) {
+                    for (let y = icY - 1; y < icY + icHeight + 1; y++) {
+                        if (this.grid[x] && this.grid[x][y] === 1) {
                             overlaps = true;
                             break;
                         }
