@@ -5,8 +5,11 @@ import path from "path";
 import { generateDependencyInstructions } from "@/ai/flows/generate-dependency-instructions";
 
 const effectFileMap: { [key: string]: string } = {
+  "jack-in": "jack-in.ts",
   matrix: "matrix.ts",
   healing: "healing.ts",
+  damage: "damage.ts",
+  shield: "shield.ts",
 };
 
 export async function generateDependenciesForEffect(effectKey: string) {

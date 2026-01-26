@@ -14,6 +14,8 @@ import { type VFXEffectClass, type VFXSettings } from "@/effects/types";
 import { MatrixEffect } from "@/effects/matrix";
 import { HealingEffect } from "@/effects/healing";
 import { JackInEffect } from "@/effects/jack-in";
+import { DamageEffect } from "@/effects/damage";
+import { ShieldEffect } from "@/effects/shield";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +23,8 @@ const availableEffects: Record<string, VFXEffectClass> = {
   "jack-in": JackInEffect,
   matrix: MatrixEffect,
   healing: HealingEffect,
+  damage: DamageEffect,
+  shield: ShieldEffect,
 };
 
 const backgroundClasses: Record<string, string> = {
