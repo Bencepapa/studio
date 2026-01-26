@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -24,6 +25,8 @@ import { ScannerEffect } from "@/effects/scanner";
 import { RadarScannerEffect } from "@/effects/radar-scanner";
 import { CyberGridEffect } from "@/effects/cyber-grid";
 import { IncomingMessageEffect } from "@/effects/incoming-message";
+import { FadeTransitionEffect } from "@/effects/fade-transition";
+import { RibbonTransitionEffect } from "@/effects/ribbon-transition";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -31,6 +34,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const availableEffects: Record<string, VFXEffectClass> = {
   levelup: LevelUpEffect,
+  "ribbon-transition": RibbonTransitionEffect,
+  "fade-transition": FadeTransitionEffect,
   "incoming-message": IncomingMessageEffect,
   "cyber-grid": CyberGridEffect,
   "jack-in": JackInEffect,

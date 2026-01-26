@@ -1,3 +1,4 @@
+
 "use server";
 
 import fs from "fs";
@@ -19,6 +20,8 @@ const effectFileMap: { [key: string]: string } = {
   "radar-scanner": "radar-scanner.ts",
   "cyber-grid": "cyber-grid.ts",
   "incoming-message": "incoming-message.ts",
+  "fade-transition": "fade-transition.ts",
+  "ribbon-transition": "ribbon-transition.ts",
 };
 
 export async function generateDependenciesForEffect(effectKey: string) {
