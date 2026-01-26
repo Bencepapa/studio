@@ -11,6 +11,7 @@ const effectFileMap: { [key: string]: string } = {
   damage: "damage.ts",
   shield: "shield.ts",
   alert: "alert.ts",
+  crash: "crash.ts",
 };
 
 export async function generateDependenciesForEffect(effectKey: string) {

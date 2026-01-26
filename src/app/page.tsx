@@ -17,6 +17,7 @@ import { JackInEffect } from "@/effects/jack-in";
 import { DamageEffect } from "@/effects/damage";
 import { ShieldEffect } from "@/effects/shield";
 import { AlertEffect } from "@/effects/alert";
+import { CrashEffect } from "@/effects/crash";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ const availableEffects: Record<string, VFXEffectClass> = {
   damage: DamageEffect,
   shield: ShieldEffect,
   alert: AlertEffect,
+  crash: CrashEffect,
 };
 
 const backgroundClasses: Record<string, string> = {
@@ -36,7 +38,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("jack-in");
+  const [effectKey, setEffectKey] = React.useState<string>("crash");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);
