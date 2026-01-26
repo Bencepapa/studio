@@ -87,8 +87,8 @@ class CPUComponent extends BoardComponent {
 
         if (pinCountPerSide < 1) return;
 
-        const pinSpacingX = width / (pinCountPerSide -1);
-        const pinSpacingY = height / (pinCountPerSide - 1);
+        const pinSpacingX = (width - 1) / (pinCountPerSide -1);
+        const pinSpacingY = (height - 1) / (pinCountPerSide - 1);
 
         for (let i = 0; i < pinCountPerSide; i++) {
             const pinX = x + Math.round(i * pinSpacingX);
@@ -98,11 +98,9 @@ class CPUComponent extends BoardComponent {
              this.pins.push(new Pin(pinX, y - 1, 'n'));
              this.pins.push(new Pin(pinX, y + height, 's'));
             
-             // Left & Right pins (avoiding corners)
-            if (i > 0 && i < pinCountPerSide -1) {
-                this.pins.push(new Pin(x - 1, pinY, 'w'));
-                this.pins.push(new Pin(x + width, pinY, 'e'));
-            }
+             // Left & Right pins
+             this.pins.push(new Pin(x - 1, pinY, 'w'));
+             this.pins.push(new Pin(x + width, pinY, 'e'));
         }
     }
     
@@ -121,10 +119,10 @@ class CPUComponent extends BoardComponent {
         ctx.textBaseline = 'middle';
 
         // Emboss effect
-        ctx.fillStyle = `hsl(${hue}, 80%, 30%)`; // Darker shadow
+        ctx.fillStyle = `hsl(${hue}, 80%, 20%)`; // Darker shadow
         ctx.fillText(this.glyph, px + pw / 2 + 2, py + ph / 2 + 2);
 
-        ctx.fillStyle = `hsl(${hue}, 80%, 50%)`; // Main color
+        ctx.fillStyle = `hsl(${hue}, 80%, 40%)`; // Main color
         ctx.fillText(this.glyph, px + pw / 2, py + ph / 2);
     }
 }
@@ -140,14 +138,14 @@ class ICComponent extends BoardComponent {
         const isVertical = height > width;
 
         if (isVertical) {
-            const pinSpacing = height / (pinCountPerSide - 1);
+            const pinSpacing = (height - 1) / (pinCountPerSide - 1);
             for (let i = 0; i < pinCountPerSide; i++) {
                 const pinY = y + (i * pinSpacing);
                 this.pins.push(new Pin(x - 1, Math.round(pinY), 'w'));
                 this.pins.push(new Pin(x + width, Math.round(pinY), 'e'));
             }
         } else {
-            const pinSpacing = width / (pinCountPerSide - 1);
+            const pinSpacing = (width - 1) / (pinCountPerSide - 1);
             for (let i = 0; i < pinCountPerSide; i++) {
                 const pinX = x + (i * pinSpacing);
                 this.pins.push(new Pin(Math.round(pinX), y - 1, 'n'));
@@ -177,7 +175,7 @@ class ICComponent extends BoardComponent {
             const pixelSize = Math.min(pw, ph) / 8;
             const startX = px + (pw - pixelSize * 5) / 2;
             const startY = py + (ph - pixelSize * 5) / 2;
-            ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
+            ctx.fillStyle = `hsl(${hue}, 80%, 45%)`;
 
             for (let i = 0; i < 25; i++) {
                 if (this.pixelArt[i] === '1') {
