@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -7,7 +6,6 @@ import {
   Sidebar,
   SidebarInset,
   SidebarTrigger,
-  SidebarHeader,
 } from "@/components/ui/sidebar";
 import { ControlPanel } from "@/components/control-panel";
 import { EffectPlayer } from "@/components/effect-player";
@@ -22,6 +20,8 @@ import { CrashEffect } from "@/effects/crash";
 import { CompilerEffect } from "@/effects/compiler";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const availableEffects: Record<string, VFXEffectClass> = {
   "jack-in": JackInEffect,
@@ -65,6 +65,20 @@ export default function Home() {
     setSpeed(1);
   };
 
+  const effectKeys = Object.keys(availableEffects);
+  const currentIndex = effectKeys.indexOf(effectKey);
+
+  const handlePrevEffect = () => {
+    const prevIndex = (currentIndex - 1 + effectKeys.length) % effectKeys.length;
+    handleEffectChange(effectKeys[prevIndex]);
+  };
+
+  const handleNextEffect = () => {
+    const nextIndex = (currentIndex + 1) % effectKeys.length;
+    handleEffectChange(effectKeys[nextIndex]);
+  };
+
+
   const currentSettings = React.useMemo(() => ({
       ...CurrentEffect.defaultSettings,
       ...(settings[effectKey] || {}),
@@ -91,14 +105,25 @@ export default function Home() {
         />
       </Sidebar>
       <SidebarInset className="flex flex-col !m-0 !rounded-none min-h-screen">
-        <header className="flex items-center justify-between p-2 pl-4 border-b bg-sidebar-background/50 backdrop-blur-sm">
+        <header className="grid grid-cols-3 items-center p-2 pl-4 border-b bg-sidebar-background/50 backdrop-blur-sm">
           <div className="flex items-center gap-3">
             <LabLogo className="w-7 h-7 text-primary" />
             <h1 className="text-xl font-bold font-headline tracking-tight">
               VFX Lab
             </h1>
           </div>
-          <SidebarTrigger />
+          <div className="flex items-center justify-center gap-2">
+            <Button variant="ghost" size="icon" onClick={handlePrevEffect} className="h-7 w-7">
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+            <span className="text-sm w-32 text-center truncate">{CurrentEffect.effectName}</span>
+            <Button variant="ghost" size="icon" onClick={handleNextEffect} className="h-7 w-7">
+              <ChevronRight className="w-5 h-5" />
+            </Button>
+          </div>
+          <div className="flex justify-end">
+            <SidebarTrigger />
+          </div>
         </header>
         <main className={cn("flex-1 relative bg-background overflow-hidden", backgroundClasses[background])}>
           <EffectPlayer
