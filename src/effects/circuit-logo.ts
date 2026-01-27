@@ -64,10 +64,10 @@ class Trace {
         const headX = mapRange(segmentProgress, 0, 1, from.x, to.x) * CELL_SIZE;
         const headY = mapRange(segmentProgress, 0, 1, from.y, to.y) * CELL_SIZE;
 
-        const headSize = 3; // Make the head smaller and more subtle
+        const headSize = 2; // Make the head smaller and more subtle
         const gradient = ctx.createRadialGradient(headX, headY, 0, headX, headY, headSize * 2);
-        gradient.addColorStop(0, `hsla(0, 0%, 100%, 0.7)`); // Less intense white center
-        gradient.addColorStop(0.5, `hsla(0, 0%, 90%, 0.3)`); // Fade quicker
+        gradient.addColorStop(0, `hsla(0, 0%, 100%, 0.5)`); // Less intense white center
+        gradient.addColorStop(0.5, `hsla(0, 0%, 90%, 0.2)`); // Fade quicker
         gradient.addColorStop(1, `hsla(0, 0%, 80%, 0)`); // Fully transparent
 
         ctx.fillStyle = gradient;
@@ -156,7 +156,7 @@ export class CircuitLogoEffect implements VFXEffect {
 
     static effectName = "Circuit Logo";
     static defaultSettings: VFXSettings = {
-        pinCount: 4,
+        pinCount: 50,
         hue: 120,
         traceSpeed: 1.0,
         glowFactor: 2.0,
@@ -403,7 +403,7 @@ export class CircuitLogoEffect implements VFXEffect {
 
                 ctx.fillStyle = `hsla(0, 0%, 100%, ${brightness * 0.7})`; // Dimmer white
                 ctx.shadowColor = `hsla(0, 0%, 100%, 0.5)`;
-                ctx.shadowBlur = brightness * 6 * (glowFactor as number);
+                ctx.shadowBlur = brightness * 3 * (glowFactor as number);
                 ctx.fillRect(
                     pixelX + (CELL_SIZE - smallBlockSize) / 2, 
                     pixelY + (CELL_SIZE - smallBlockSize) / 2, 
