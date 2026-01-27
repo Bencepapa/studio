@@ -381,22 +381,38 @@ export class CircuitLogoEffect implements VFXEffect {
 
         // 2. Draw the glowing activated cells
         const { hue, glowFactor } = this.settings;
-        ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.8)`;
         
         this.activatedCells.forEach((brightness, key) => {
             const [gridX, gridY] = key.split(',').map(Number);
             
-            // Only draw glow if the cell is part of a letter
+            // Check if the cell is part of a letter or part of the trace path
             if (this.boardGrid[gridX]?.[gridY] === 1) {
+                // --- Glow on Letter Path (Green) ---
                 const pixelX = gridX * CELL_SIZE;
                 const pixelY = gridY * CELL_SIZE;
                 
                 ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${brightness})`;
+                ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.8)`;
                 ctx.shadowBlur = brightness * 10 * (glowFactor as number);
                 ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE);
+            } else {
+                // --- Glow on Trace Path (White) ---
+                const pixelX = gridX * CELL_SIZE;
+                const pixelY = gridY * CELL_SIZE;
+                const smallBlockSize = CELL_SIZE / 2.5; 
+
+                ctx.fillStyle = `hsla(0, 0%, 100%, ${brightness * 0.7})`; // Dimmer white
+                ctx.shadowColor = `hsla(0, 0%, 100%, 0.5)`;
+                ctx.shadowBlur = brightness * 6 * (glowFactor as number);
+                ctx.fillRect(
+                    pixelX + (CELL_SIZE - smallBlockSize) / 2, 
+                    pixelY + (CELL_SIZE - smallBlockSize) / 2, 
+                    smallBlockSize, 
+                    smallBlockSize
+                );
             }
         });
-        ctx.shadowBlur = 0;
+        ctx.shadowBlur = 0; // Reset shadow for other drawing operations
 
         // 3. Draw the moving trace heads (which also updates the activatedCells map)
         if (this.currentTime < this.finalGlowStartTime) {
