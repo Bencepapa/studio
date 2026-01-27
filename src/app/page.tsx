@@ -38,6 +38,7 @@ import { SystemOverloadEffect } from "@/effects/system-overload";
 import { SpeechBubbleEffect } from "@/effects/speech-bubble";
 import { CyberdeckStartupEffect } from "@/effects/cyberdeck-startup";
 import { GameMenuEffect } from "@/effects/game-menu";
+import { CircuitLogoEffect } from "@/effects/circuit-logo";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ import { GameUiBackground } from "@/components/game-ui-background";
 import { WelcomeEffect } from "@/effects/welcome";
 
 const availableEffects: Record<string, VFXEffectClass> = {
+  "circuit-logo": CircuitLogoEffect,
   "welcome": WelcomeEffect,
   "game-menu": GameMenuEffect,
   "cyberdeck-startup": CyberdeckStartupEffect,
@@ -85,7 +87,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("welcome");
+  const [effectKey, setEffectKey] = React.useState<string>("circuit-logo");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);

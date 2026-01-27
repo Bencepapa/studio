@@ -6,6 +6,7 @@ import path from "path";
 import { generateDependencyInstructions } from "@/ai/flows/generate-dependency-instructions";
 
 const effectFileMap: { [key: string]: string } = {
+  "circuit-logo": "circuit-logo.ts",
   "welcome": "welcome.ts",
   "game-menu": "game-menu.ts",
   "pc-startup": "pc-startup.ts",
