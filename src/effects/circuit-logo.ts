@@ -154,7 +154,7 @@ export class CircuitLogoEffect implements VFXEffect {
         openList.push(startNode);
 
         while (openList.length > 0) {
-            openList.sort((a, b) => a.f - b.f);
+            openList.sort((a, b) => a.f - b.f); // Inefficient, but works for this scale
             const currentNode = openList.shift()!;
             
             if(currentNode.x < 0 || currentNode.x >= gridWidth || currentNode.y < 0 || currentNode.y >= gridHeight) continue;
@@ -168,6 +168,7 @@ export class CircuitLogoEffect implements VFXEffect {
                 return path.reverse();
             }
 
+            // Check neighbors
             for (let dx = -1; dx <= 1; dx++) {
                 for (let dy = -1; dy <= 1; dy++) {
                     if (dx === 0 && dy === 0) continue;
@@ -178,12 +179,20 @@ export class CircuitLogoEffect implements VFXEffect {
                     if (nx < 0 || nx >= gridWidth || ny < 0 || ny >= gridHeight) continue;
                     if (closedList[nx][ny] || grid[nx][ny] === 1) continue;
 
+                    // Prevent cutting corners through obstacles
+                    if (dx !== 0 && dy !== 0) {
+                        if (grid[currentNode.x][ny] === 1 || grid[nx][currentNode.y] === 1) {
+                            continue;
+                        }
+                    }
+                    
                     const g = currentNode.g + Math.sqrt(dx*dx + dy*dy);
                     let neighbor = openList.find(n => n.x === nx && n.y === ny);
 
                     if (!neighbor) {
                         neighbor = new PathNode(nx, ny);
-                        neighbor.h = Math.abs(nx - end.x) + Math.abs(ny - end.y);
+                        // Use Euclidean distance for heuristic with diagonal movement
+                        neighbor.h = Math.sqrt(Math.pow(nx - end.x, 2) + Math.pow(ny - end.y, 2));
                         neighbor.g = g;
                         neighbor.f = g + neighbor.h;
                         neighbor.parent = currentNode;
@@ -198,6 +207,7 @@ export class CircuitLogoEffect implements VFXEffect {
         }
         return null;
     }
+
 
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
         this.canvas = canvas;
@@ -258,6 +268,7 @@ export class CircuitLogoEffect implements VFXEffect {
             y: p.y + Math.floor(l.yOffset / CELL_SIZE)
         })));
 
+
         allPins.forEach((pin, i) => {
             let startX, startY;
             if (seededRandom(i * 10) > 0.5) {
@@ -267,9 +278,28 @@ export class CircuitLogoEffect implements VFXEffect {
                 startX = seededRandom(i * 13) > 0.5 ? 0 : boardGridWidth - 1;
                 startY = Math.floor(seededRandom(i * 14) * boardGridHeight);
             }
-            const path = this.aStar({ x: startX, y: startY }, { x: pin.x, y: pin.y }, this.boardGrid);
-            if (path) {
-                this.traces.push(new Trace(path, this.totalDuration, i));
+
+            // Find a valid target point adjacent to the pin, which is not an obstacle
+            let targetX = -1, targetY = -1;
+            const directions = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}, {x:-1,y:-1}, {x:1,y:-1}, {x:-1,y:1}, {x:1,y:1}];
+            
+            for(const dir of directions) {
+                const nx = pin.x + dir.x;
+                const ny = pin.y + dir.y;
+                if (nx >= 0 && nx < boardGridWidth && ny >= 0 && ny < boardGridHeight && this.boardGrid[nx][ny] === 0) {
+                    targetX = nx;
+                    targetY = ny;
+                    break;
+                }
+            }
+        
+            if (targetX !== -1) {
+                const path = this.aStar({ x: startX, y: startY }, { x: targetX, y: targetY }, this.boardGrid);
+                if (path) {
+                    // The path ends at the adjacent cell. Manually add the pin itself to the end.
+                    path.push({x: pin.x, y: pin.y});
+                    this.traces.push(new Trace(path, this.totalDuration, i));
+                }
             }
         });
     }
@@ -337,5 +367,3 @@ export class CircuitLogoEffect implements VFXEffect {
 
     getSettings() { return this.settings; }
 }
-
-    
