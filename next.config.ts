@@ -1,5 +1,7 @@
 import type {NextConfig} from 'next';
 
+const isGithubPages = process.env.GITHUB_PAGES === 'true';
+
 const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
@@ -30,6 +32,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  
+  // Apply GitHub Pages configuration only when the GITHUB_PAGES environment variable is set.
+  ...(isGithubPages && {
+    output: 'export',
+    basePath: '/studio',
+    assetPrefix: '/studio',
+  }),
 };
 
 export default nextConfig;
