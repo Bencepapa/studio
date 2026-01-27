@@ -34,7 +34,6 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import type { VFXEffectClass, VFXSettings } from "@/effects/types";
-import { generateDependenciesForEffect } from "@/app/actions";
 import {
   Dialog,
   DialogContent,
@@ -95,9 +94,16 @@ export function ControlPanel({
   const handleGenerateInstructions = async () => {
     setIsGenerating(true);
     setInstructions(null);
-    const result = await generateDependenciesForEffect(effectKey);
-    setInstructions(result.instructions);
-    setIsGenerating(false);
+    try {
+        const { generateDependenciesForEffect } = await import("@/app/actions");
+        const result = await generateDependenciesForEffect(effectKey);
+        setInstructions(result.instructions);
+    } catch (error) {
+        console.error("Failed to load or execute server action:", error);
+        setInstructions("Dependency generation is not available in this environment. This feature requires a server and is disabled in static exports.");
+    } finally {
+        setIsGenerating(false);
+    }
   };
 
   const renderSettingControl = (key: string, value: any) => {
