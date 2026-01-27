@@ -31,7 +31,7 @@ class Trace {
         this.delay = seededRandom(seed + 1) * (traceDuration - this.duration);
     }
 
-    draw(ctx: CanvasRenderingContext2D, time: number, settings: VFXSettings, activatedCells: Map<string, number>) {
+    draw(ctx: CanvasRenderingContext2D, time: number, settings: VFXSettings, activatedCells: Map<string, number>, boardGrid: number[][]) {
         const timeInCycle = time - this.delay;
         if (timeInCycle < 0 || timeInCycle > this.duration || this.path.length < 2) return;
 
@@ -45,18 +45,23 @@ class Trace {
         
         // `from` coordinates are global grid coordinates.
         activatedCells.set(`${from.x},${from.y}`, 1.0);
-        // Activate neighbors for a blooming effect
+        
+        // Activate neighbors for a blooming effect, but only if they are part of a letter
         const neighbors = [
-            {x: from.x-1, y: from.y}, {x: from.x+1, y: from.y},
-            {x: from.x, y: from.y-1}, {x: from.x, y: from.y+1},
-            {x: from.x-1, y: from.y-1}, {x: from.x+1, y: from.y-1},
-            {x: from.x-1, y: from.y+1}, {x: from.x+1, y: from.y+1},
+            {x: from.x - 1, y: from.y}, {x: from.x + 1, y: from.y},
+            {x: from.x, y: from.y - 1}, {x: from.x, y: from.y + 1},
+            {x: from.x - 1, y: from.y - 1}, {x: from.x + 1, y: from.y - 1},
+            {x: from.x - 1, y: from.y + 1}, {x: from.x + 1, y: from.y + 1},
         ];
+
         neighbors.forEach(n => {
-            const key = `${n.x},${n.y}`;
-            // Only set brightness if it's not already brighter. This prevents overwriting the main path.
-            if (!activatedCells.has(key) || activatedCells.get(key)! < 0.5) {
-                activatedCells.set(key, 0.5);
+            // Check if neighbor is within bounds and is part of a letter
+            if (boardGrid[n.x]?.[n.y] === 1) {
+                const key = `${n.x},${n.y}`;
+                // Only set brightness if it's not already brighter.
+                if (!activatedCells.has(key) || activatedCells.get(key)! < 0.5) {
+                    activatedCells.set(key, 0.5); // Use a dimmer brightness for the bloom
+                }
             }
         });
         
@@ -68,7 +73,7 @@ class Trace {
         const headX = mapRange(segmentProgress, 0, 1, fromXCenter, toXCenter);
         const headY = mapRange(segmentProgress, 0, 1, fromYCenter, toYCenter);
 
-        const headSize = 4; // Make the head bigger again
+        const headSize = 4;
         const gradient = ctx.createRadialGradient(headX, headY, 0, headX, headY, headSize * 2);
         gradient.addColorStop(0, `hsla(0, 0%, 100%, 0.5)`);
         gradient.addColorStop(0.5, `hsla(0, 0%, 90%, 0.2)`);
@@ -420,7 +425,7 @@ export class CircuitLogoEffect implements VFXEffect {
 
         // 3. Draw the moving trace heads (which also updates the activatedCells map)
         if (this.currentTime < this.finalGlowStartTime) {
-            this.traces.forEach(trace => trace.draw(ctx, this.currentTime, this.settings, this.activatedCells));
+            this.traces.forEach(trace => trace.draw(ctx, this.currentTime, this.settings, this.activatedCells, this.boardGrid));
         }
 
         ctx.restore();
