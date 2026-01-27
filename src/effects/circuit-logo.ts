@@ -60,15 +60,19 @@ class Trace {
             }
         });
         
-        // head coordinates are global pixel coordinates.
-        const headX = mapRange(segmentProgress, 0, 1, from.x, to.x) * CELL_SIZE;
-        const headY = mapRange(segmentProgress, 0, 1, from.y, to.y) * CELL_SIZE;
+        // head coordinates are global pixel coordinates, interpolated between cell centers
+        const fromXCenter = from.x * CELL_SIZE + CELL_SIZE / 2;
+        const fromYCenter = from.y * CELL_SIZE + CELL_SIZE / 2;
+        const toXCenter = to.x * CELL_SIZE + CELL_SIZE / 2;
+        const toYCenter = to.y * CELL_SIZE + CELL_SIZE / 2;
+        const headX = mapRange(segmentProgress, 0, 1, fromXCenter, toXCenter);
+        const headY = mapRange(segmentProgress, 0, 1, fromYCenter, toYCenter);
 
-        const headSize = 2; // Make the head smaller and more subtle
+        const headSize = 4; // Make the head bigger again
         const gradient = ctx.createRadialGradient(headX, headY, 0, headX, headY, headSize * 2);
-        gradient.addColorStop(0, `hsla(0, 0%, 100%, 0.5)`); // Less intense white center
-        gradient.addColorStop(0.5, `hsla(0, 0%, 90%, 0.2)`); // Fade quicker
-        gradient.addColorStop(1, `hsla(0, 0%, 80%, 0)`); // Fully transparent
+        gradient.addColorStop(0, `hsla(0, 0%, 100%, 0.5)`);
+        gradient.addColorStop(0.5, `hsla(0, 0%, 90%, 0.2)`);
+        gradient.addColorStop(1, `hsla(0, 0%, 80%, 0)`);
 
         ctx.fillStyle = gradient;
         ctx.fillRect(headX - headSize, headY - headSize, headSize * 2, headSize * 2);
@@ -399,11 +403,11 @@ export class CircuitLogoEffect implements VFXEffect {
                 // --- Glow on Trace Path (White) ---
                 const pixelX = gridX * CELL_SIZE;
                 const pixelY = gridY * CELL_SIZE;
-                const smallBlockSize = CELL_SIZE / 2.5; 
+                const smallBlockSize = CELL_SIZE / 3; 
 
                 ctx.fillStyle = `hsla(0, 0%, 100%, ${brightness * 0.7})`; // Dimmer white
                 ctx.shadowColor = `hsla(0, 0%, 100%, 0.5)`;
-                ctx.shadowBlur = brightness * 3 * (glowFactor as number);
+                ctx.shadowBlur = brightness * 2 * (glowFactor as number);
                 ctx.fillRect(
                     pixelX + (CELL_SIZE - smallBlockSize) / 2, 
                     pixelY + (CELL_SIZE - smallBlockSize) / 2, 
