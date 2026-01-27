@@ -32,7 +32,6 @@ class Trace {
     }
 
     draw(ctx: CanvasRenderingContext2D, time: number, settings: VFXSettings, activatedCells: Map<string, number>) {
-        const { hue } = settings;
         const timeInCycle = time - this.delay;
         if (timeInCycle < 0 || timeInCycle > this.duration || this.path.length < 2) return;
 
@@ -46,6 +45,20 @@ class Trace {
         
         // `from` coordinates are global grid coordinates.
         activatedCells.set(`${from.x},${from.y}`, 1.0);
+        // Activate neighbors for a blooming effect
+        const neighbors = [
+            {x: from.x-1, y: from.y}, {x: from.x+1, y: from.y},
+            {x: from.x, y: from.y-1}, {x: from.x, y: from.y+1},
+            {x: from.x-1, y: from.y-1}, {x: from.x+1, y: from.y-1},
+            {x: from.x-1, y: from.y+1}, {x: from.x+1, y: from.y+1},
+        ];
+        neighbors.forEach(n => {
+            const key = `${n.x},${n.y}`;
+            // Only set brightness if it's not already brighter. This prevents overwriting the main path.
+            if (!activatedCells.has(key) || activatedCells.get(key)! < 0.5) {
+                activatedCells.set(key, 0.5);
+            }
+        });
         
         // head coordinates are global pixel coordinates.
         const headX = mapRange(segmentProgress, 0, 1, from.x, to.x) * CELL_SIZE;
@@ -53,8 +66,9 @@ class Trace {
 
         const headSize = 6;
         const gradient = ctx.createRadialGradient(headX, headY, 0, headX, headY, headSize * 2);
-        gradient.addColorStop(0, `hsla(${hue}, 100%, 90%, 0.9)`);
-        gradient.addColorStop(1, `hsla(${hue}, 100%, 70%, 0)`);
+        gradient.addColorStop(0, `hsla(0, 0%, 100%, 0.9)`); // Bright white center
+        gradient.addColorStop(0.5, `hsla(0, 0%, 90%, 0.5)`); // Fading to light grey
+        gradient.addColorStop(1, `hsla(0, 0%, 80%, 0)`); // Fully transparent
 
         ctx.fillStyle = gradient;
         ctx.fillRect(headX - headSize, headY - headSize, headSize * 2, headSize * 2);
