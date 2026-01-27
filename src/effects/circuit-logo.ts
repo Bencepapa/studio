@@ -64,10 +64,10 @@ class Trace {
         const headX = mapRange(segmentProgress, 0, 1, from.x, to.x) * CELL_SIZE;
         const headY = mapRange(segmentProgress, 0, 1, from.y, to.y) * CELL_SIZE;
 
-        const headSize = 6;
+        const headSize = 3; // Make the head smaller and more subtle
         const gradient = ctx.createRadialGradient(headX, headY, 0, headX, headY, headSize * 2);
-        gradient.addColorStop(0, `hsla(0, 0%, 100%, 0.9)`); // Bright white center
-        gradient.addColorStop(0.5, `hsla(0, 0%, 90%, 0.5)`); // Fading to light grey
+        gradient.addColorStop(0, `hsla(0, 0%, 100%, 0.7)`); // Less intense white center
+        gradient.addColorStop(0.5, `hsla(0, 0%, 90%, 0.3)`); // Fade quicker
         gradient.addColorStop(1, `hsla(0, 0%, 80%, 0)`); // Fully transparent
 
         ctx.fillStyle = gradient;
@@ -366,12 +366,16 @@ export class CircuitLogoEffect implements VFXEffect {
         
         this.activatedCells.forEach((brightness, key) => {
             const [gridX, gridY] = key.split(',').map(Number);
-            const pixelX = gridX * CELL_SIZE;
-            const pixelY = gridY * CELL_SIZE;
             
-            ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${brightness})`;
-            ctx.shadowBlur = brightness * 10 * (glowFactor as number);
-            ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE);
+            // Only draw glow if the cell is part of a letter
+            if (this.boardGrid[gridX]?.[gridY] === 1) {
+                const pixelX = gridX * CELL_SIZE;
+                const pixelY = gridY * CELL_SIZE;
+                
+                ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${brightness})`;
+                ctx.shadowBlur = brightness * 10 * (glowFactor as number);
+                ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE);
+            }
         });
         ctx.shadowBlur = 0;
 
