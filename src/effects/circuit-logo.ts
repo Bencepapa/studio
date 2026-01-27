@@ -25,10 +25,10 @@ class Trace {
     delay: number;
     duration: number;
 
-    constructor(path: { x: number, y: number }[], totalDuration: number, seed: number) {
+    constructor(path: { x: number, y: number }[], traceDuration: number, seed: number) {
         this.path = path;
         this.duration = seededRandom(seed) * 1.5 + 1.0;
-        this.delay = seededRandom(seed + 1) * (totalDuration - this.duration);
+        this.delay = seededRandom(seed + 1) * (traceDuration - this.duration);
     }
 
     draw(ctx: CanvasRenderingContext2D, time: number, settings: VFXSettings, activatedCells: Map<string, number>) {
@@ -149,6 +149,10 @@ export class CircuitLogoEffect implements VFXEffect {
     private height = 0;
     private currentTime = 0;
     private totalDuration = 5.0;
+    private finalGlowStartTime = 5.0;
+    private finalGlowDuration = 1.5;
+    private xGlowOffset = 0;
+    private yGlowOffset = 0;
 
     static effectName = "Circuit Logo";
     static defaultSettings: VFXSettings = {
@@ -232,6 +236,11 @@ export class CircuitLogoEffect implements VFXEffect {
         if (this.width === 0 || this.height === 0) return;
 
         this.settings = { ...CircuitLogoEffect.defaultSettings, ...settings };
+        
+        // --- Setup Timings ---
+        this.finalGlowStartTime = 5.0;
+        this.totalDuration = this.finalGlowStartTime + this.finalGlowDuration;
+
         this.letters = [];
         this.traces = [];
         this.activatedCells.clear();
@@ -246,8 +255,14 @@ export class CircuitLogoEffect implements VFXEffect {
         const letterGridHeight = 7; // All letters are 7 cells high
         const allLettersHeight = letterGridHeight * CELL_SIZE;
         
-        let currentX = (this.width - allLettersWidth) / 2;
+        const xOffset = (this.width - allLettersWidth) / 2;
         const yOffset = (this.height - allLettersHeight) / 2;
+        
+        // Calculate sub-grid displacement for glow fix
+        this.xGlowOffset = xOffset - Math.floor(xOffset / CELL_SIZE) * CELL_SIZE;
+        this.yGlowOffset = yOffset - Math.floor(yOffset / CELL_SIZE) * CELL_SIZE;
+        
+        let currentX = xOffset;
 
         word.split('').forEach((char, index) => {
             const letter = new Letter(char, currentX, yOffset, this.settings.pinCount as number, index);
@@ -312,7 +327,7 @@ export class CircuitLogoEffect implements VFXEffect {
                 if (path) {
                     // The path ends at the adjacent cell. Manually add the pin itself to the end.
                     path.push({x: pin.x, y: pin.y});
-                    this.traces.push(new Trace(path, this.totalDuration, i));
+                    this.traces.push(new Trace(path, this.finalGlowStartTime, i));
                 }
             }
         });
@@ -360,6 +375,10 @@ export class CircuitLogoEffect implements VFXEffect {
         // 1. Draw the dim base shape of all letters
         this.letters.forEach(l => l.drawBase(ctx, this.settings));
         
+        ctx.save();
+        // Apply global offset to align glow and traces with the base letters
+        ctx.translate(this.xGlowOffset, this.yGlowOffset);
+
         // 2. Draw the glowing activated cells
         const { hue, glowFactor } = this.settings;
         ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.8)`;
@@ -380,7 +399,36 @@ export class CircuitLogoEffect implements VFXEffect {
         ctx.shadowBlur = 0;
 
         // 3. Draw the moving trace heads (which also updates the activatedCells map)
-        this.traces.forEach(trace => trace.draw(ctx, this.currentTime, this.settings, this.activatedCells));
+        if (this.currentTime < this.finalGlowStartTime) {
+            this.traces.forEach(trace => trace.draw(ctx, this.currentTime, this.settings, this.activatedCells));
+        }
+
+        ctx.restore();
+
+        // 4. Draw the final glow-up animation
+        if (this.currentTime >= this.finalGlowStartTime) {
+            const progress = (this.currentTime - this.finalGlowStartTime) / this.finalGlowDuration;
+            const brightness = Math.sin(progress * Math.PI); // Pulse from 0 -> 1 -> 0
+            
+            if (brightness > 0) {
+                ctx.save();
+                ctx.translate(this.xGlowOffset, this.yGlowOffset);
+                ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.8)`;
+                ctx.shadowBlur = brightness * 20 * (glowFactor as number);
+        
+                for (let gx = 0; gx < this.boardGrid.length; gx++) {
+                    for (let gy = 0; gy < this.boardGrid[gx].length; gy++) {
+                        if (this.boardGrid[gx][gy] === 1) {
+                            const pixelX = gx * CELL_SIZE;
+                            const pixelY = gy * CELL_SIZE;
+                            ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${brightness})`;
+                            ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE);
+                        }
+                    }
+                }
+                ctx.restore();
+            }
+        }
     }
 
     getSettings() { return this.settings; }
