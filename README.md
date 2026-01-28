@@ -1,8 +1,6 @@
-# Firebase Studio
+# VFX Lab
 
-This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
+This is a NextJS app developed in Firebase Studio.
 
 ## Live Demo
 
