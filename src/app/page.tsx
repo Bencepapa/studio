@@ -48,12 +48,12 @@ import { GameUiBackground } from "@/components/game-ui-background";
 import { WelcomeEffect } from "@/effects/welcome";
 
 const availableEffects: Record<string, VFXEffectClass> = {
+  "cpu-trace": CPUTraceEffect,
   "circuit-logo": CircuitLogoEffect,
   "welcome": WelcomeEffect,
   "game-menu": GameMenuEffect,
   "cyberdeck-startup": CyberdeckStartupEffect,
   "data-cubes": DataCubesEffect,
-  "cpu-trace": CPUTraceEffect,
   "system-overload": SystemOverloadEffect,
   "speech-bubble": SpeechBubbleEffect,
   "pc-startup": PCStartupEffect,

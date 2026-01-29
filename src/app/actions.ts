@@ -3,7 +3,6 @@
 
 import fs from "fs";
 import path from "path";
-import { generateDependencyInstructions } from "@/ai/flows/generate-dependency-instructions";
 
 const effectFileMap: { [key: string]: string } = {
   "circuit-logo": "circuit-logo.ts",
@@ -34,6 +33,19 @@ const effectFileMap: { [key: string]: string } = {
   "cyberdeck-startup": "cyberdeck-startup.ts",
 };
 
+const UTILS_INSTRUCTIONS = `This effect relies on helper functions from a utility script.
+
+1. **Copy the utility file:**
+   Locate the file at \`src/effects/utils.ts\` in the VFX Lab project and copy it into your own project.
+
+2. **Ensure correct import path:**
+   Make sure the effect file can correctly import the utilities. For example, if you place both the effect file and \`utils.ts\` in the same directory, the import statement in the effect file should look like this:
+
+   \`\`\`typescript
+   import { seededRandom, mapRange, randomRange, lerp } from './utils';
+   \`\`\`
+`;
+
 export async function generateDependenciesForEffect(effectKey: string) {
   const fileName = effectFileMap[effectKey];
   if (!fileName) {
@@ -44,13 +56,19 @@ export async function generateDependenciesForEffect(effectKey: string) {
 
   try {
     const effectCode = fs.readFileSync(filePath, "utf-8");
-    const { instructions } = await generateDependencyInstructions({ effectCode });
-    return { instructions: instructions || "No dependencies found." };
+
+    // Simple analysis: check if 'utils.ts' is imported.
+    if (effectCode.includes("from './utils'")) {
+        return { instructions: UTILS_INSTRUCTIONS };
+    }
+
+    return { instructions: "No external script dependencies found for this effect." };
+
   } catch (error: any) {
-    console.error("Error generating dependency instructions:", error);
+    console.error("Error reading effect file:", error);
     if (error.code === 'ENOENT') {
       return { instructions: `Error: Effect file not found at ${filePath}.` };
     }
-    return { instructions: "Could not generate instructions. Please check the server logs." };
+    return { instructions: "Could not analyze dependencies. Please check the server logs." };
   }
 }
