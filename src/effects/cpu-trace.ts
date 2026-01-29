@@ -267,6 +267,7 @@ export class CPUTraceEffect implements VFXEffect {
     private components: BoardComponent[] = [];
     private traces: Trace[] = [];
     private obstacleGrid: number[][] = [];
+    private penaltyGrid: number[][] = [];
     private gridWidth = 0;
     private gridHeight = 0;
 
@@ -285,7 +286,7 @@ export class CPUTraceEffect implements VFXEffect {
     };
 
     // A* pathfinding algorithm
-    private aStar(startPin: Pin, endPin: Pin, obstacleGrid: number[][]): { x: number, y: number }[] | null {
+    private aStar(startPin: Pin, endPin: Pin, obstacleGrid: number[][], penaltyGrid: number[][]): { x: number, y: number }[] | null {
 
         const getPathfindingEndpoint = (pin: Pin) => {
             let x = pin.x, y = pin.y;
@@ -336,14 +337,6 @@ export class CPUTraceEffect implements VFXEffect {
                 }
                 const finalPath = path.reverse();
                 
-                // Add points to enforce pin direction
-                const startDir = startPin.direction;
-                const pathStart = finalPath[0];
-                if (startDir === 'n' && pathStart.y < startPin.y) finalPath.unshift({x: startPin.x, y: startPin.y -1});
-                if (startDir === 's' && pathStart.y > startPin.y) finalPath.unshift({x: startPin.x, y: startPin.y +1});
-                if (startDir === 'w' && pathStart.x < startPin.x) finalPath.unshift({x: startPin.x-1, y: startPin.y});
-                if (startDir === 'e' && pathStart.x > startPin.x) finalPath.unshift({x: startPin.x+1, y: startPin.y});
-
                 finalPath.unshift({ x: startPin.x, y: startPin.y });
                 finalPath.push({ x: endPin.x, y: endPin.y });
 
@@ -374,13 +367,17 @@ export class CPUTraceEffect implements VFXEffect {
                     continue;
                 }
                 
-                const gScore = currentNode.g + neighbor.cost;
+                const gScore = currentNode.g + neighbor.cost + penaltyGrid[neighborPos.x][neighborPos.y];
                 
                 const existingNode = openList.find(n => n.x === neighborPos.x && n.y === neighborPos.y);
 
                 if (!existingNode) {
                     const neighborNode = new PathNode(neighborPos.x, neighborPos.y);
-                    neighborNode.h = Math.abs(neighborPos.x - endNode.x) + Math.abs(neighborPos.y - endNode.y);
+                    if (this.settings.traceAngle === 45) {
+                        neighborNode.h = Math.sqrt(Math.pow(neighborPos.x - endNode.x, 2) + Math.pow(neighborPos.y - endNode.y, 2));
+                    } else {
+                        neighborNode.h = Math.abs(neighborPos.x - endNode.x) + Math.abs(neighborPos.y - endNode.y);
+                    }
                     neighborNode.parent = currentNode;
                     neighborNode.g = gScore;
                     neighborNode.f = neighborNode.g + neighborNode.h;
@@ -484,8 +481,29 @@ export class CPUTraceEffect implements VFXEffect {
             }
         }
         
+        // Create a penalty grid to discourage traces from hugging components
+        this.penaltyGrid = Array(this.gridWidth).fill(0).map(() => Array(this.gridHeight).fill(0));
+        const penalty = 15; // High cost for cells adjacent to obstacles
+        for (let x = 0; x < this.gridWidth; x++) {
+            for (let y = 0; y < this.gridHeight; y++) {
+                if (this.obstacleGrid[x][y] === 1) {
+                    // Apply penalty to neighbors
+                    for (let dx = -1; dx <= 1; dx++) {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            if (dx === 0 && dy === 0) continue;
+                            const nx = x + dx;
+                            const ny = y + dy;
+                            if (nx >= 0 && nx < this.gridWidth && ny >= 0 && ny < this.gridHeight && this.obstacleGrid[nx][ny] === 0) {
+                                this.penaltyGrid[nx][ny] = penalty;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         // 3. Create Traces
-        const traceCount = nodeCount * 1.5;
+        const traceCount = nodeCount * 2;
         const allPins = this.components.flatMap(c => c.pins);
 
         for (let i = 0; i < traceCount; i++) {
@@ -512,7 +530,7 @@ export class CPUTraceEffect implements VFXEffect {
                     }
                 });
                 
-                const path = this.aStar(pin1, pin2, pathfindingObstacleGrid);
+                const path = this.aStar(pin1, pin2, pathfindingObstacleGrid, this.penaltyGrid);
                 if (path) {
                     pin1.isOccupied = true;
                     pin2.isOccupied = true;
