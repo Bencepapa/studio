@@ -32,6 +32,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  env: {
+    IS_STATIC_EXPORT: isGithubPages ? 'true' : 'false',
+  },
   
   // Apply GitHub Pages configuration only when the GITHUB_PAGES environment variable is set.
   ...(isGithubPages && {

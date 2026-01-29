@@ -94,13 +94,20 @@ export function ControlPanel({
   const handleGenerateInstructions = async () => {
     setIsGenerating(true);
     setInstructions(null);
+    
+    if (process.env.IS_STATIC_EXPORT === 'true') {
+      setInstructions("Dependency generation is not available in this environment. This feature requires a server and is disabled in static exports.");
+      setIsGenerating(false);
+      return;
+    }
+
     try {
         const { generateDependenciesForEffect } = await import("@/app/actions");
         const result = await generateDependenciesForEffect(effectKey);
         setInstructions(result.instructions);
     } catch (error) {
         console.error("Failed to load or execute server action:", error);
-        setInstructions("Dependency generation is not available in this environment. This feature requires a server and is disabled in static exports.");
+        setInstructions("Could not generate instructions. Please check the server logs.");
     } finally {
         setIsGenerating(false);
     }
