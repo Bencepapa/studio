@@ -1,6 +1,7 @@
 
 import { seededRandom, mapRange } from './utils';
 import type { VFXEffect, VFXEffectClass, VFXSettings } from './types';
+import { formatDay } from 'react-day-picker';
 
 const GRID_CELL_SIZE = 10;
 const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
@@ -49,11 +50,30 @@ class BoardComponent {
         this.height = height;
     }
 
+    isPinFree(pin: number): boolean {
+        return !this.pins[pin].isOccupied;
+    }
+
     getFreePin(): Pin | null {
         const freePins = this.pins.filter(p => !p.isOccupied);
         if (freePins.length === 0) return null;
         const pin = freePins[Math.floor(seededRandom(this.x + this.y + freePins.length) * freePins.length)];
         return pin;
+    }
+
+    getNextFreePin(pin: Pin | null): Pin | null {
+        if (!pin) return this.getFreePin();
+        if (this.pins.length === 0) return null;
+        const pinPos = this.pins.findIndex(p => p === pin);
+        if (pinPos === -1) return null;
+        let nextPin = null;
+        for (let i = 1; i < this.pins.length; i++) {
+            if(this.isPinFree((pinPos+i) % this.pins.length)) {
+                nextPin = this.pins[pinPos+i % this.pins.length];
+                break;
+            }
+        }
+        return nextPin;
     }
 
     draw(ctx: CanvasRenderingContext2D, settings: VFXSettings) {
@@ -215,7 +235,7 @@ class Trace {
 
     constructor(path: { x: number, y: number }[], totalDuration: number, seed: number) {
         this.path = path;
-        this.duration = seededRandom(seed) * 1.5 + 0.5;
+        this.duration = path.length / 20 + 0.5;
         this.delay = seededRandom(seed + 1) * (totalDuration - this.duration);
         this.pathLength = path.length;
     }
@@ -276,7 +296,7 @@ export class CPUTraceEffect implements VFXEffect {
     private width = 0;
     private height = 0;
     private currentTime = 0;
-    private totalDuration = 5.0;
+    private totalDuration = 20.0;
 
     static effectName = "CPU Trace";
     static defaultSettings: VFXSettings = {
@@ -503,11 +523,11 @@ export class CPUTraceEffect implements VFXEffect {
         }
         
         // 3. Create Traces
-        const traceCount = nodeCount * 2;
+        const traceCount = nodeCount * 5;
         const allPins = this.components.flatMap(c => c.pins);
 
         for (let i = 0; i < traceCount; i++) {
-            const comp1Index = Math.floor(seededRandom(i) * this.components.length);
+            let comp1Index = i<traceCount/5? 0 : Math.floor(seededRandom(i) * this.components.length);
             let comp2Index = Math.floor(seededRandom(i + 1) * this.components.length);
             if (comp1Index === comp2Index) {
                 comp2Index = (comp1Index + 1) % this.components.length;
@@ -515,33 +535,42 @@ export class CPUTraceEffect implements VFXEffect {
 
             const comp1 = this.components[comp1Index];
             const comp2 = this.components[comp2Index];
+            let pin1: Pin | null = null;
+            let pin2: Pin | null = null;
 
-            const pin1 = comp1.getFreePin();
-            const pin2 = comp2.getFreePin();
+            let repeat = (comp1Index == 0 || comp2Index == 0) ? 5 : 3; // CPU should look busy
+            for (let j = 0; j < repeat; j++) { // try to make more connection between two ic
+                pin1 = comp1.getNextFreePin(pin1);
+                pin2 = comp2.getNextFreePin(pin2);
 
-            if (pin1 && pin2) {
-                const pathfindingObstacleGrid = this.obstacleGrid.map(row => [...row]);
+                if (pin1 && pin2) {
+                    const pathfindingObstacleGrid = this.obstacleGrid.map(row => [...row]);
 
-                allPins.forEach(p => {
-                    if (p !== pin1 && p !== pin2) {
-                        if (p.x >= 0 && p.x < this.gridWidth && p.y >= 0 && p.y < this.gridHeight) {
-                            pathfindingObstacleGrid[p.x][p.y] = 1; // Mark other pins as obstacles
-                        }
-                    }
-                });
-                
-                const path = this.aStar(pin1, pin2, pathfindingObstacleGrid, this.penaltyGrid);
-                if (path) {
-                    pin1.isOccupied = true;
-                    pin2.isOccupied = true;
-                    this.traces.push(new Trace(path, this.totalDuration, i));
-                    
-                    // Mark path as obstacle in the main grid for subsequent traces
-                    path.forEach(p => {
-                        if (this.obstacleGrid[p.x] && this.obstacleGrid[p.x][p.y] !== undefined && this.obstacleGrid[p.x][p.y] === 0) {
-                            this.obstacleGrid[p.x][p.y] = 1;
+                    allPins.forEach(p => {
+                        if (p !== pin1 && p !== pin2) {
+                            if (p.x >= 0 && p.x < this.gridWidth && p.y >= 0 && p.y < this.gridHeight) {
+                                pathfindingObstacleGrid[p.x][p.y] = 1; // Mark other pins as obstacles
+                            }
                         }
                     });
+                    
+                    const path = this.aStar(pin1, pin2, pathfindingObstacleGrid, this.penaltyGrid);
+                    if (path) {
+                        pin1.isOccupied = true;
+                        pin2.isOccupied = true;
+
+                        for (let k = 0; k < repeat; k++) {
+                            // add the same path multiple times to the animation
+                            this.traces.push(new Trace(path, this.totalDuration, (i+j)*k));
+                        }
+                        
+                        // Mark path as obstacle in the main grid for subsequent traces
+                        path.forEach(p => {
+                            if (this.obstacleGrid[p.x] && this.obstacleGrid[p.x][p.y] !== undefined && this.obstacleGrid[p.x][p.y] === 0) {
+                                this.obstacleGrid[p.x][p.y] = 1;
+                            }
+                        });
+                    }
                 }
             }
         }

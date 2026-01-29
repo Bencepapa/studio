@@ -312,7 +312,7 @@ export function ControlPanel({
       
       let max;
       if (isCount) {
-        max = 1000;
+        max = 500;
       } else if (isSpeed) {
         max = 10;
       } else if (isRibbonWidth) {
