@@ -285,7 +285,7 @@ export class CPUTraceEffect implements VFXEffect {
     };
 
     // A* pathfinding algorithm
-    private aStar(startPin: Pin, endPin: Pin): { x: number, y: number }[] | null {
+    private aStar(startPin: Pin, endPin: Pin, grid: number[][]): { x: number, y: number }[] | null {
 
         const getPathfindingEndpoint = (pin: Pin) => {
             let x = pin.x, y = pin.y;
@@ -370,7 +370,7 @@ export class CPUTraceEffect implements VFXEffect {
             for (const neighbor of neighbors) {
                 const neighborPos = neighbor.pos;
 
-                if (closedList[neighborPos.x][neighborPos.y] || this.grid[neighborPos.x][neighborPos.y] === 1) {
+                if (closedList[neighborPos.x][neighborPos.y] || grid[neighborPos.x][neighborPos.y] === 1) {
                     continue;
                 }
                 
@@ -485,12 +485,13 @@ export class CPUTraceEffect implements VFXEffect {
         }
         
         // 3. Create Traces
-        const traceGrid = this.grid.map(row => [...row]);
         const traceCount = nodeCount * 1.5;
+        const allPins = this.components.flatMap(c => c.pins);
+
         for (let i = 0; i < traceCount; i++) {
             const comp1Index = Math.floor(seededRandom(i) * this.components.length);
             let comp2Index = Math.floor(seededRandom(i + 1) * this.components.length);
-            if(comp1Index === comp2Index) {
+            if (comp1Index === comp2Index) {
                 comp2Index = (comp1Index + 1) % this.components.length;
             }
 
@@ -501,15 +502,25 @@ export class CPUTraceEffect implements VFXEffect {
             const pin2 = comp2.getFreePin();
 
             if (pin1 && pin2) {
-                const path = this.aStar(pin1, pin2);
-                if(path) {
+                const pathfindingGrid = this.grid.map(row => [...row]);
+
+                allPins.forEach(p => {
+                    if (p !== pin1 && p !== pin2) {
+                        if (p.x >= 0 && p.x < this.gridWidth && p.y >= 0 && p.y < this.gridHeight) {
+                            pathfindingGrid[p.x][p.y] = 1;
+                        }
+                    }
+                });
+                
+                const path = this.aStar(pin1, pin2, pathfindingGrid);
+                if (path) {
                     pin1.isOccupied = true;
                     pin2.isOccupied = true;
                     this.traces.push(new Trace(path, this.totalDuration, i));
-                    // Mark path as obstacle for next trace
+                    
                     path.forEach(p => {
-                        if (traceGrid[p.x] && traceGrid[p.x][p.y] !== undefined && traceGrid[p.x][p.y] === 0) { // Don't overwrite components
-                            traceGrid[p.x][p.y] = 1;
+                        if (this.grid[p.x] && this.grid[p.x][p.y] !== undefined && this.grid[p.x][p.y] === 0) {
+                            this.grid[p.x][p.y] = 1;
                         }
                     });
                 }
