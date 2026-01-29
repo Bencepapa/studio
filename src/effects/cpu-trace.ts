@@ -266,7 +266,7 @@ class Trace {
 export class CPUTraceEffect implements VFXEffect {
     private components: BoardComponent[] = [];
     private traces: Trace[] = [];
-    private grid: number[][] = [];
+    private obstacleGrid: number[][] = [];
     private gridWidth = 0;
     private gridHeight = 0;
 
@@ -285,7 +285,7 @@ export class CPUTraceEffect implements VFXEffect {
     };
 
     // A* pathfinding algorithm
-    private aStar(startPin: Pin, endPin: Pin, grid: number[][]): { x: number, y: number }[] | null {
+    private aStar(startPin: Pin, endPin: Pin, obstacleGrid: number[][]): { x: number, y: number }[] | null {
 
         const getPathfindingEndpoint = (pin: Pin) => {
             let x = pin.x, y = pin.y;
@@ -370,7 +370,7 @@ export class CPUTraceEffect implements VFXEffect {
             for (const neighbor of neighbors) {
                 const neighborPos = neighbor.pos;
 
-                if (closedList[neighborPos.x][neighborPos.y] || grid[neighborPos.x][neighborPos.y] === 1) {
+                if (closedList[neighborPos.x][neighborPos.y] || obstacleGrid[neighborPos.x][neighborPos.y] === 1) {
                     continue;
                 }
                 
@@ -416,7 +416,7 @@ export class CPUTraceEffect implements VFXEffect {
             return;
         }
         
-        this.grid = Array(this.gridWidth).fill(0).map(() => Array(this.gridHeight).fill(0));
+        this.obstacleGrid = Array(this.gridWidth).fill(0).map(() => Array(this.gridHeight).fill(0));
         this.components = [];
         this.traces = [];
 
@@ -433,7 +433,7 @@ export class CPUTraceEffect implements VFXEffect {
         this.components.push(cpu);
         for (let i = 0; i < cpuWidth; i++) {
             for (let j = 0; j < cpuHeight; j++) {
-                this.grid[cpuX + i][cpuY + j] = 1; 
+                this.obstacleGrid[cpuX + i][cpuY + j] = 1; 
             }
         }
 
@@ -461,7 +461,7 @@ export class CPUTraceEffect implements VFXEffect {
                 for (let x = icX - 1; x < icX + icWidth + 1; x++) {
                     for (let y = icY - 1; y < icY + icHeight + 1; y++) {
                          if (x < 0 || x >= this.gridWidth || y < 0 || y >= this.gridHeight) continue;
-                        if (this.grid[x][y] === 1) {
+                        if (this.obstacleGrid[x][y] === 1) {
                             overlaps = true;
                             break;
                         }
@@ -475,7 +475,7 @@ export class CPUTraceEffect implements VFXEffect {
                     this.components.push(ic);
                     for (let x = icX; x < icX + icWidth; x++) {
                         for (let y = icY; y < icY + icHeight; y++) {
-                            this.grid[x][y] = 1;
+                            this.obstacleGrid[x][y] = 1;
                         }
                     }
                     placed = true;
@@ -502,25 +502,26 @@ export class CPUTraceEffect implements VFXEffect {
             const pin2 = comp2.getFreePin();
 
             if (pin1 && pin2) {
-                const pathfindingGrid = this.grid.map(row => [...row]);
+                const pathfindingObstacleGrid = this.obstacleGrid.map(row => [...row]);
 
                 allPins.forEach(p => {
                     if (p !== pin1 && p !== pin2) {
                         if (p.x >= 0 && p.x < this.gridWidth && p.y >= 0 && p.y < this.gridHeight) {
-                            pathfindingGrid[p.x][p.y] = 1;
+                            pathfindingObstacleGrid[p.x][p.y] = 1; // Mark other pins as obstacles
                         }
                     }
                 });
                 
-                const path = this.aStar(pin1, pin2, pathfindingGrid);
+                const path = this.aStar(pin1, pin2, pathfindingObstacleGrid);
                 if (path) {
                     pin1.isOccupied = true;
                     pin2.isOccupied = true;
                     this.traces.push(new Trace(path, this.totalDuration, i));
                     
+                    // Mark path as obstacle in the main grid for subsequent traces
                     path.forEach(p => {
-                        if (this.grid[p.x] && this.grid[p.x][p.y] !== undefined && this.grid[p.x][p.y] === 0) {
-                            this.grid[p.x][p.y] = 1;
+                        if (this.obstacleGrid[p.x] && this.obstacleGrid[p.x][p.y] !== undefined && this.obstacleGrid[p.x][p.y] === 0) {
+                            this.obstacleGrid[p.x][p.y] = 1;
                         }
                     });
                 }
