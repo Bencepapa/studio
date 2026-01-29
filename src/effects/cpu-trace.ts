@@ -71,9 +71,9 @@ class BoardComponent {
         ctx.strokeRect(px, py, pw, ph);
 
         // Draw pins
-        ctx.fillStyle = `hsl(${hue}, 80%, 40%)`;
+        ctx.fillStyle = `hsl(${hue}, 40%, 40%)`;
         this.pins.forEach(pin => {
-            ctx.fillRect(pin.x * GRID_CELL_SIZE - 2, pin.y * GRID_CELL_SIZE - 2, 5, 5);
+            ctx.fillRect((pin.x+0.5) * GRID_CELL_SIZE-2.5, (pin.y + 0.5) * GRID_CELL_SIZE -2.5, 5, 5);
         });
     }
 }
@@ -235,9 +235,9 @@ class Trace {
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(this.path[0].x * GRID_CELL_SIZE, this.path[0].y * GRID_CELL_SIZE);
+        ctx.moveTo((this.path[0].x + 0.5) * GRID_CELL_SIZE, (this.path[0].y + 0.5) * GRID_CELL_SIZE);
         for (let i = 1; i < this.path.length; i++) {
-            ctx.lineTo(this.path[i].x * GRID_CELL_SIZE, this.path[i].y * GRID_CELL_SIZE);
+            ctx.lineTo((this.path[i].x + 0.5) * GRID_CELL_SIZE, (this.path[i].y + 0.5) * GRID_CELL_SIZE);
         }
         ctx.stroke();
 
@@ -250,8 +250,8 @@ class Trace {
 
         if (!from || !to) return;
 
-        const headX = mapRange(segmentProgress, 0, 1, from.x, to.x) * GRID_CELL_SIZE;
-        const headY = mapRange(segmentProgress, 0, 1, from.y, to.y) * GRID_CELL_SIZE;
+        const headX = (mapRange(segmentProgress, 0, 1, from.x, to.x) + 0.5) * GRID_CELL_SIZE;
+        const headY = (mapRange(segmentProgress, 0, 1, from.y, to.y) + 0.5) * GRID_CELL_SIZE;
 
         const headSize = 4;
         const gradient = ctx.createRadialGradient(headX, headY, 0, headX, headY, headSize * 2);

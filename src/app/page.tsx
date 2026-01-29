@@ -87,7 +87,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("circuit-logo");
+  const [effectKey, setEffectKey] = React.useState<string>("welcome");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);
