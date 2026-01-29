@@ -52,7 +52,7 @@ const nextConfig: NextConfig = {
       // with static export" error.
       config.plugins.push(
         new webpack.IgnorePlugin({
-          resourceRegExp: /app[\\/]actions\.ts$/,
+          resourceRegExp: /^\@\/app\/actions$/,
         })
       );
     }
