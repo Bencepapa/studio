@@ -483,18 +483,18 @@ export class CPUTraceEffect implements VFXEffect {
         
         // Create a penalty grid to discourage traces from hugging components
         this.penaltyGrid = Array(this.gridWidth).fill(0).map(() => Array(this.gridHeight).fill(0));
-        const penalty = 15; // High cost for cells adjacent to obstacles
+        const penalty = 2; // High cost for cells adjacent to obstacles
         for (let x = 0; x < this.gridWidth; x++) {
             for (let y = 0; y < this.gridHeight; y++) {
                 if (this.obstacleGrid[x][y] === 1) {
                     // Apply penalty to neighbors
-                    for (let dx = -1; dx <= 1; dx++) {
-                        for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -3; dx <= 3; dx++) {
+                        for (let dy = -3; dy <= 3; dy++) {
                             if (dx === 0 && dy === 0) continue;
                             const nx = x + dx;
                             const ny = y + dy;
                             if (nx >= 0 && nx < this.gridWidth && ny >= 0 && ny < this.gridHeight && this.obstacleGrid[nx][ny] === 0) {
-                                this.penaltyGrid[nx][ny] = penalty;
+                                this.penaltyGrid[nx][ny] = penalty * (10-Math.abs(dx)-Math.abs(dy));
                             }
                         }
                     }
