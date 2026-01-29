@@ -42,6 +42,22 @@ const nextConfig: NextConfig = {
     basePath: '/studio',
     assetPrefix: '/studio',
   }),
+  
+  webpack: (config, { webpack }) => {
+    if (isGithubPages) {
+      // When building for static export, completely ignore the server actions file.
+      // The component that uses it (`control-panel.tsx`) already has a conditional
+      // check to avoid calling it. This webpack rule prevents the module from
+      // being bundled at all, which resolves the "Server Actions are not supported
+      // with static export" error.
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^\@\/app\/actions$/,
+        })
+      );
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
