@@ -39,6 +39,7 @@ import { SpeechBubbleEffect } from "@/effects/speech-bubble";
 import { CyberdeckStartupEffect } from "@/effects/cyberdeck-startup";
 import { GameMenuEffect } from "@/effects/game-menu";
 import { CircuitLogoEffect } from "@/effects/circuit-logo";
+import { DroneViewEffect } from "@/effects/drone-view";
 import { LabLogo } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ import { GameUiBackground } from "@/components/game-ui-background";
 import { WelcomeEffect } from "@/effects/welcome";
 
 const availableEffects: Record<string, VFXEffectClass> = {
+  "drone-view": DroneViewEffect,
   "cpu-trace": CPUTraceEffect,
   "circuit-logo": CircuitLogoEffect,
   "welcome": WelcomeEffect,
