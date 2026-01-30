@@ -51,9 +51,9 @@ class Building {
         ctx.fillRect(this.x, this.y, this.width, this.height);
         
         // Draw rooftop details
-        ctx.strokeStyle = `hsl(${settings.mapHue}, 20%, ${(settings.mapLightness as number) + 15}%)`;
-        ctx.lineWidth = 1 * zoom;
         if (this.rooftopPattern === 1) { // Horizontal lines
+            ctx.strokeStyle = `hsl(${settings.mapHue}, 20%, ${(settings.mapLightness as number) + 15}%)`;
+            ctx.lineWidth = 1 * zoom;
             for (let i = 5; i < this.height; i += 10) {
                 ctx.beginPath();
                 ctx.moveTo(this.x, this.y + i);
@@ -107,22 +107,20 @@ class Vehicle {
 
     draw(ctx: CanvasRenderingContext2D, settings: VFXSettings) {
         const headlightHue = seededRandom(this.seed+3) > 0.3 ? 60 : 0; // yellow or red
-        const color = `hsl(${headlightHue}, 100%, ${settings.headlightLightness as number}%)`;
-
+        
         // Draw car body
         ctx.fillStyle = '#222';
         ctx.fillRect(this.x, this.y, this.size.w, this.size.h);
 
         // Draw headlights
+        const color = `hsl(${headlightHue}, 100%, ${settings.headlightLightness as number}%)`;
         ctx.fillStyle = color;
         if (this.isVertical) {
             // Headlights at the bottom, since y increases downwards
-            ctx.fillRect(this.x, this.y + this.size.h - 1, 1, 1);
-            ctx.fillRect(this.x + this.size.w - 1, this.y + this.size.h - 1, 1, 1);
+            ctx.fillRect(this.x, this.y + this.size.h - 1, this.size.w, 1);
         } else {
             // Headlights at the right, since x increases to the right
-            ctx.fillRect(this.x + this.size.w - 1, this.y, 1, 1);
-            ctx.fillRect(this.x + this.size.w - 1, this.y + this.size.h - 1, 1, 1);
+            ctx.fillRect(this.x + this.size.w - 1, this.y, 1, this.size.h);
         }
     }
 }
@@ -158,6 +156,7 @@ export class DroneViewEffect implements VFXEffect {
         mapLightness: 15,
         headlightLightness: 80,
         mapBlur: 0,
+        cameraSway: 0,
     };
 
     constructor() {
@@ -212,6 +211,7 @@ export class DroneViewEffect implements VFXEffect {
             
             const blockHeight = (seededRandom(seed++) * 200 + 50) * zoom * buildingDensity;
             const finalBlockHeight = Math.min(blockHeight, remainingHeight);
+            if(finalBlockHeight <= 0) break;
 
             // Iterate through the spaces between vertical streets to place buildings
             let lastVStreetEdge = 0;
@@ -305,8 +305,8 @@ export class DroneViewEffect implements VFXEffect {
         ctx.font = `bold 16px "Source Code Pro"`;
         ctx.fillStyle = color;
         ctx.textAlign = 'left';
-        const lat = (34.0522 + (seededRandom(Math.floor(this.currentTime*10)) - 0.5) * 0.001).toFixed(6);
-        const lon = (-118.2437 + (seededRandom(Math.floor(this.currentTime*10)+1) - 0.5) * 0.001).toFixed(6);
+        const lat = (34.0522 + (seededRandom(Math.floor(this.currentTime*10)) - 0.5) * 0.0001).toFixed(6);
+        const lon = (-118.2437 + (seededRandom(Math.floor(this.currentTime*10)+1) - 0.5) * 0.0001).toFixed(6);
         ctx.fillText(`GPS: ${lat}, ${lon}`, 20, 30);
         ctx.fillText(`ALT: ${(200 + Math.sin(this.currentTime) * 10).toFixed(2)}m`, 20, 50);
 
@@ -368,7 +368,19 @@ export class DroneViewEffect implements VFXEffect {
 
         // Draw main scene and UI to buffer
         this.bufferCtx.clearRect(0, 0, this.width, this.height);
+        
+        this.bufferCtx.save();
+        const sway = this.settings.cameraSway as number;
+        if (sway > 0) {
+            const swayX = Math.sin(this.currentTime * 0.3) * sway * 0.7 + Math.sin(this.currentTime * 0.7) * sway * 0.3;
+            const swayY = Math.sin(this.currentTime * 0.4) * sway * 0.7 + Math.sin(this.currentTime * 0.8) * sway * 0.3;
+            this.bufferCtx.translate(swayX, swayY);
+        }
+        
         this.drawScene(this.bufferCtx);
+        
+        this.bufferCtx.restore();
+        
         this.drawUI(this.bufferCtx);
 
         // Render buffer to main canvas with effects
