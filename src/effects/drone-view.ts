@@ -9,28 +9,27 @@ class Building {
     y: number;
     width: number;
     height: number;
-    color: string;
-    rooftopColor: string;
     rooftopPattern: number; // 0 for solid, 1 for lines
+    seed: number;
 
-    constructor(x: number, y: number, width: number, height: number, seed: number, settings: VFXSettings) {
+    constructor(x: number, y: number, width: number, height: number, seed: number) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
-
-        const baseLightness = (settings.mapLightness as number) + seededRandom(seed) * 10 - 5;
-        this.rooftopColor = `hsl(${settings.mapHue}, 20%, ${baseLightness}%)`;
-        this.color = `hsl(${settings.mapHue}, 20%, ${baseLightness - 5}%)`; // Sightly darker side
-
+        this.seed = seed;
         this.rooftopPattern = Math.floor(seededRandom(seed+2) * 2); // Only 0 or 1
     }
 
     draw(ctx: CanvasRenderingContext2D, zoom: number, settings: VFXSettings) {
         const sideWidth = 4 * zoom; // Shadow/3D effect width
 
+        const baseLightness = (settings.mapLightness as number) + seededRandom(this.seed) * 10 - 5;
+        const rooftopColor = `hsl(${settings.mapHue}, 20%, ${baseLightness}%)`;
+        const color = `hsl(${settings.mapHue}, 20%, ${baseLightness - 5}%)`; // Sightly darker side
+
         // Draw dark side for 3D effect
-        ctx.fillStyle = this.color;
+        ctx.fillStyle = color;
         ctx.beginPath();
         ctx.moveTo(this.x + this.width, this.y);
         ctx.lineTo(this.x + this.width + sideWidth, this.y - sideWidth);
@@ -48,7 +47,7 @@ class Building {
         ctx.fill();
         
         // Draw main face
-        ctx.fillStyle = this.rooftopColor;
+        ctx.fillStyle = rooftopColor;
         ctx.fillRect(this.x, this.y, this.width, this.height);
         
         // Draw rooftop details
@@ -71,11 +70,10 @@ class Vehicle {
     speed: number;
     isVertical: boolean;
     size: { w: number, h: number };
-    color: string;
     seed: number;
     timeOffset: number;
 
-    constructor(seed: number, isVertical: boolean, streetPosition: number, streetWidth: number, zoom: number, settings: VFXSettings) {
+    constructor(seed: number, isVertical: boolean, streetPosition: number, streetWidth: number, zoom: number) {
         this.seed = seed;
         this.isVertical = isVertical;
         this.speed = seededRandom(seed) * 50 + 20; // pixels per second
@@ -96,9 +94,6 @@ class Vehicle {
             this.x = 0; // Will be set in update
             this.y = streetPosition + laneOffset;
         }
-        
-        const headlightHue = seededRandom(seed+3) > 0.3 ? 60 : 0; // yellow or red
-        this.color = `hsl(${headlightHue}, 100%, ${settings.headlightLightness as number}%)`;
     }
 
     update(time: number, bounds: { width: number, height: number }) {
@@ -110,13 +105,16 @@ class Vehicle {
         }
     }
 
-    draw(ctx: CanvasRenderingContext2D) {
+    draw(ctx: CanvasRenderingContext2D, settings: VFXSettings) {
+        const headlightHue = seededRandom(this.seed+3) > 0.3 ? 60 : 0; // yellow or red
+        const color = `hsl(${headlightHue}, 100%, ${settings.headlightLightness as number}%)`;
+
         // Draw car body
         ctx.fillStyle = '#222';
         ctx.fillRect(this.x, this.y, this.size.w, this.size.h);
 
         // Draw headlights
-        ctx.fillStyle = this.color;
+        ctx.fillStyle = color;
         if (this.isVertical) {
             // Headlights at the bottom, since y increases downwards
             ctx.fillRect(this.x, this.y + this.size.h - 1, 1, 1);
@@ -135,6 +133,8 @@ export class DroneViewEffect implements VFXEffect {
     private canvas: HTMLCanvasElement | null = null;
     private bufferCanvas: HTMLCanvasElement;
     private bufferCtx: CanvasRenderingContext2D;
+    private channelCanvas: HTMLCanvasElement;
+    private channelCtx: CanvasRenderingContext2D;
     
     private width = 0;
     private height = 0;
@@ -163,6 +163,8 @@ export class DroneViewEffect implements VFXEffect {
     constructor() {
         this.bufferCanvas = document.createElement('canvas');
         this.bufferCtx = this.bufferCanvas.getContext('2d')!;
+        this.channelCanvas = document.createElement('canvas');
+        this.channelCtx = this.channelCanvas.getContext('2d')!;
     }
 
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
@@ -172,6 +174,8 @@ export class DroneViewEffect implements VFXEffect {
         this.height = rect.height;
         this.bufferCanvas.width = this.width;
         this.bufferCanvas.height = this.height;
+        this.channelCanvas.width = this.width;
+        this.channelCanvas.height = this.height;
 
         if (this.width === 0 || this.height === 0) return;
         this.settings = { ...DroneViewEffect.defaultSettings, ...settings };
@@ -202,17 +206,20 @@ export class DroneViewEffect implements VFXEffect {
         while (currentY < this.height) {
             this.streets.push({ pos: currentY, width: streetWidth, isVertical: false });
             currentY += streetWidth;
-            const blockHeight = (seededRandom(seed++) * 200 + 50) * zoom * buildingDensity;
-
-            if (currentY + blockHeight > this.height) break;
             
+            const remainingHeight = this.height - currentY;
+            if (remainingHeight < 20 * zoom) break; // Not enough space for a meaningful block
+            
+            const blockHeight = (seededRandom(seed++) * 200 + 50) * zoom * buildingDensity;
+            const finalBlockHeight = Math.min(blockHeight, remainingHeight);
+
             // Iterate through the spaces between vertical streets to place buildings
             let lastVStreetEdge = 0;
             verticalStreets.forEach(vStreet => {
                 const blockX = lastVStreetEdge;
                 const blockWidth = vStreet.pos - lastVStreetEdge;
                 if (blockWidth > streetWidth) { // Only add buildings if there's enough space
-                    this.buildings.push(new Building(blockX, currentY, blockWidth, blockHeight, seed++, this.settings));
+                    this.buildings.push(new Building(blockX, currentY, blockWidth, finalBlockHeight, seed++));
                 }
                 lastVStreetEdge = vStreet.pos + vStreet.width;
             });
@@ -221,11 +228,11 @@ export class DroneViewEffect implements VFXEffect {
                 const blockX = lastVStreetEdge;
                 const blockWidth = this.width - lastVStreetEdge;
                 if (blockWidth > streetWidth) {
-                    this.buildings.push(new Building(blockX, currentY, blockWidth, blockHeight, seed++, this.settings));
+                    this.buildings.push(new Building(blockX, currentY, blockWidth, finalBlockHeight, seed++));
                 }
             }
 
-            currentY += blockHeight;
+            currentY += finalBlockHeight;
         }
 
 
@@ -234,7 +241,7 @@ export class DroneViewEffect implements VFXEffect {
         this.streets.forEach((street, i) => {
             const numCars = Math.floor(trafficDensity * (street.isVertical ? this.height : this.width) / (50 * zoom));
             for(let j = 0; j < numCars; j++) {
-                this.vehicles.push(new Vehicle(i*100 + j, street.isVertical, street.pos, street.width, zoom, this.settings));
+                this.vehicles.push(new Vehicle(i*100 + j, street.isVertical, street.pos, street.width, zoom));
             }
         });
     }
@@ -276,7 +283,7 @@ export class DroneViewEffect implements VFXEffect {
         this.buildings.forEach(b => b.draw(ctx, this.settings.zoom as number, this.settings));
         
         // Vehicles
-        this.vehicles.forEach(v => v.draw(ctx));
+        this.vehicles.forEach(v => v.draw(ctx, this.settings));
 
         // Reset filter
         if (mapBlur > 0) {
@@ -365,23 +372,33 @@ export class DroneViewEffect implements VFXEffect {
         this.drawUI(this.bufferCtx);
 
         // Render buffer to main canvas with effects
-        ctx.clearRect(0, 0, this.width, this.height);
         const ca = this.settings.chromaticAberration as number;
         if (ca > 0) {
-            // A simplified but effective chromatic aberration effect
+            ctx.clearRect(0, 0, this.width, this.height);
+
+            // --- Red Channel ---
+            this.channelCtx.clearRect(0, 0, this.width, this.height);
+            this.channelCtx.drawImage(this.bufferCanvas, 0, 0);
+            this.channelCtx.globalCompositeOperation = 'multiply';
+            this.channelCtx.fillStyle = 'red';
+            this.channelCtx.fillRect(0, 0, this.width, this.height);
+            this.channelCtx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(this.channelCanvas, ca, 0);
+            
+            // --- Cyan Channel ---
+            this.channelCtx.clearRect(0, 0, this.width, this.height);
+            this.channelCtx.drawImage(this.bufferCanvas, 0, 0);
+            this.channelCtx.globalCompositeOperation = 'multiply';
+            this.channelCtx.fillStyle = 'cyan';
+            this.channelCtx.fillRect(0, 0, this.width, this.height);
+            this.channelCtx.globalCompositeOperation = 'source-over';
+            
             ctx.globalCompositeOperation = 'lighter';
-            
-            // Red channel
-            ctx.drawImage(this.bufferCanvas, ca, 0);
-            
-            // Green channel (often shifted differently or not at all)
-            ctx.drawImage(this.bufferCanvas, 0, 0);
-
-            // Blue channel
-            ctx.drawImage(this.bufferCanvas, -ca, 0);
-
+            ctx.drawImage(this.channelCanvas, -ca, 0);
             ctx.globalCompositeOperation = 'source-over';
+
         } else {
+            ctx.clearRect(0, 0, this.width, this.height);
             ctx.drawImage(this.bufferCanvas, 0, 0);
         }
     }
