@@ -3,6 +3,7 @@ import { seededRandom, mapRange, randomRange } from './utils';
 import type { VFXEffect, VFXEffectClass, VFXSettings } from './types';
 
 const STREET_COLOR = '#080808';
+const SWAY_PADDING = 60; // Padding to generate off-screen, must be > max cameraSway
 
 class Building {
     x: number;
@@ -99,9 +100,9 @@ class Vehicle {
     update(time: number, bounds: { width: number, height: number }) {
         const effectiveTime = time + this.timeOffset;
         if (this.isVertical) {
-            this.y = (effectiveTime * this.speed) % (bounds.height + this.size.h) - this.size.h;
+            this.y = (effectiveTime * this.speed) % (bounds.height + this.size.h) - this.size.h - SWAY_PADDING;
         } else {
-            this.x = (effectiveTime * this.speed) % (bounds.width + this.size.w) - this.size.w;
+            this.x = (effectiveTime * this.speed) % (bounds.width + this.size.w) - this.size.w - SWAY_PADDING;
         }
     }
 
@@ -187,11 +188,14 @@ export class DroneViewEffect implements VFXEffect {
         
         const streetWidth = 20 * zoom;
         let seed = 0;
+        
+        const generationWidth = this.width + SWAY_PADDING * 2;
+        const generationHeight = this.height + SWAY_PADDING * 2;
 
         // Generate vertical streets first and store their positions
         const verticalStreets: { pos: number, width: number }[] = [];
-        let currentX = (seededRandom(seed++) * 100 + 50) * zoom * buildingDensity; // Start with an initial block
-        while (currentX < this.width) {
+        let currentX = -SWAY_PADDING + (seededRandom(seed++) * 100 + 50) * zoom * buildingDensity;
+        while (currentX < generationWidth - SWAY_PADDING) {
             const street = { pos: currentX, width: streetWidth, isVertical: true };
             this.streets.push(street);
             verticalStreets.push(street);
@@ -200,13 +204,13 @@ export class DroneViewEffect implements VFXEffect {
         }
         
         // Generate horizontal streets and the buildings between vertical streets
-        let currentY = 0;
+        let currentY = -SWAY_PADDING;
         seed = 1000; // Reset seed for determinism in the other axis
-        while (currentY < this.height) {
+        while (currentY < generationHeight - SWAY_PADDING) {
             this.streets.push({ pos: currentY, width: streetWidth, isVertical: false });
             currentY += streetWidth;
             
-            const remainingHeight = this.height - currentY;
+            const remainingHeight = generationHeight - SWAY_PADDING - currentY;
             if (remainingHeight < 20 * zoom) break; // Not enough space for a meaningful block
             
             const blockHeight = (seededRandom(seed++) * 200 + 50) * zoom * buildingDensity;
@@ -214,7 +218,7 @@ export class DroneViewEffect implements VFXEffect {
             if(finalBlockHeight <= 0) break;
 
             // Iterate through the spaces between vertical streets to place buildings
-            let lastVStreetEdge = 0;
+            let lastVStreetEdge = -SWAY_PADDING;
             verticalStreets.forEach(vStreet => {
                 const blockX = lastVStreetEdge;
                 const blockWidth = vStreet.pos - lastVStreetEdge;
@@ -224,9 +228,9 @@ export class DroneViewEffect implements VFXEffect {
                 lastVStreetEdge = vStreet.pos + vStreet.width;
             });
             // Add buildings in the last block after the final vertical street
-            if (lastVStreetEdge < this.width) {
+            if (lastVStreetEdge < generationWidth - SWAY_PADDING) {
                 const blockX = lastVStreetEdge;
-                const blockWidth = this.width - lastVStreetEdge;
+                const blockWidth = (generationWidth - SWAY_PADDING) - lastVStreetEdge;
                 if (blockWidth > streetWidth) {
                     this.buildings.push(new Building(blockX, currentY, blockWidth, finalBlockHeight, seed++));
                 }
@@ -239,7 +243,8 @@ export class DroneViewEffect implements VFXEffect {
         // Vehicles
         const trafficDensity = (this.settings.trafficDensity as number) / 100;
         this.streets.forEach((street, i) => {
-            const numCars = Math.floor(trafficDensity * (street.isVertical ? this.height : this.width) / (50 * zoom));
+            const streetLength = street.isVertical ? generationHeight : generationWidth;
+            const numCars = Math.floor(trafficDensity * streetLength / (50 * zoom));
             for(let j = 0; j < numCars; j++) {
                 this.vehicles.push(new Vehicle(i*100 + j, street.isVertical, street.pos, street.width, zoom));
             }
@@ -264,14 +269,18 @@ export class DroneViewEffect implements VFXEffect {
             this.init(this.canvas, this.settings);
             return;
         }
-
-        this.vehicles.forEach(v => v.update(this.currentTime, { width: this.width, height: this.height }));
+        
+        const generationWidth = this.width + SWAY_PADDING * 2;
+        const generationHeight = this.height + SWAY_PADDING * 2;
+        this.vehicles.forEach(v => v.update(this.currentTime, { width: generationWidth, height: generationHeight }));
     }
 
     drawScene(ctx: CanvasRenderingContext2D) {
+        const generationWidth = this.width + SWAY_PADDING * 2;
+        const generationHeight = this.height + SWAY_PADDING * 2;
         // Background / Streets
         ctx.fillStyle = STREET_COLOR;
-        ctx.fillRect(0, 0, this.width, this.height);
+        ctx.fillRect(-SWAY_PADDING, -SWAY_PADDING, generationWidth, generationHeight);
         
         // Apply blur if any
         const mapBlur = this.settings.mapBlur as number;
@@ -314,26 +323,30 @@ export class DroneViewEffect implements VFXEffect {
         if (showLatitudeLines) {
             const baseLat = 34.0;
             const baseLon = -118.5;
-            ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 0.2)`;
-            ctx.lineWidth = 3;
+            ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 0.6)`;
+            ctx.lineWidth = 6;
             for(let i = 1; i < 5; i++) {
                 const y = i * this.height / 5;
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(this.width, y);
-                ctx.stroke();
+                for(let j = 1; j < 5; j++) {
+                    const x = j * this.width / 5;
 
-                const x = i * this.width / 5;
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, this.height);
-                ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(x - 10, y);
+                    ctx.lineTo(x + 10, y);
+                    ctx.stroke();
 
-                ctx.fillStyle = `hsla(${hue}, 80%, 70%, 0.4)`;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y - 10);
+                    ctx.lineTo(x, y + 10);
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = `hsla(${hue}, 80%, 70%, 0.5)`;
                 const latLabel = (baseLat + i * 0.1).toFixed(1);
                 const lonLabel = (baseLon + i * 0.1).toFixed(1);
-                ctx.fillText(`LAT ${latLabel}`, 5, y - 5);
-                ctx.fillText(`LON ${lonLabel}`, x + 5, 15);
+                const x = i * this.width / 5;
+                ctx.fillText(`${latLabel}`, 5, y - 5);
+                ctx.fillText(`${lonLabel}`, x + 5, 15);
             }
         }
         
@@ -344,7 +357,7 @@ export class DroneViewEffect implements VFXEffect {
             const targetX = seededRandom(Math.floor(this.currentTime * 2)) * this.width;
 
             ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 0.6)`;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 4;
             
             // Horizontal sweep
             ctx.beginPath();
@@ -366,24 +379,25 @@ export class DroneViewEffect implements VFXEffect {
     render(ctx: CanvasRenderingContext2D) {
         if (!this.width || !this.height) return;
 
-        // Draw main scene and UI to buffer
+        // Draw scene with sway into buffer
         this.bufferCtx.clearRect(0, 0, this.width, this.height);
-        
         this.bufferCtx.save();
+        
         const sway = this.settings.cameraSway as number;
         if (sway > 0) {
             const swayX = Math.sin(this.currentTime * 0.3) * sway * 0.7 + Math.sin(this.currentTime * 0.7) * sway * 0.3;
             const swayY = Math.sin(this.currentTime * 0.4) * sway * 0.7 + Math.sin(this.currentTime * 0.8) * sway * 0.3;
-            this.bufferCtx.translate(swayX, swayY);
+            this.bufferCtx.translate(-swayX, -swayY);
         }
-        
+
         this.drawScene(this.bufferCtx);
-        
         this.bufferCtx.restore();
-        
+
+        // Draw UI on top of buffer without sway
         this.drawUI(this.bufferCtx);
 
-        // Render buffer to main canvas with effects
+
+        // Render buffer to main canvas with post-processing
         const ca = this.settings.chromaticAberration as number;
         if (ca > 0) {
             ctx.clearRect(0, 0, this.width, this.height);
