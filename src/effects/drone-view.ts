@@ -2,7 +2,7 @@
 import { seededRandom, mapRange, randomRange } from './utils';
 import type { VFXEffect, VFXEffectClass, VFXSettings } from './types';
 
-const STREET_COLOR = '#1a1a1a';
+const STREET_COLOR = '#080808';
 
 class Building {
     x: number;
@@ -13,23 +13,24 @@ class Building {
     rooftopColor: string;
     rooftopPattern: number; // 0 for solid, 1 for lines, 2 for grid
 
-    constructor(x: number, y: number, width: number, height: number, seed: number) {
+    constructor(x: number, y: number, width: number, height: number, seed: number, settings: VFXSettings) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
-        const baseGray = Math.floor(seededRandom(seed) * 30 + 20);
-        this.color = `rgb(${baseGray}, ${baseGray}, ${baseGray})`;
-        const rooftopGray = baseGray + Math.floor(seededRandom(seed+1) * 20);
-        this.rooftopColor = `rgb(${rooftopGray}, ${rooftopGray}, ${rooftopGray})`;
+
+        const baseLightness = (settings.mapLightness as number) + seededRandom(seed) * 10 - 5;
+        this.rooftopColor = `hsl(${settings.mapHue}, 20%, ${baseLightness}%)`;
+        this.color = `hsl(${settings.mapHue}, 20%, ${baseLightness - 5}%)`; // Sightly darker side
+
         this.rooftopPattern = Math.floor(seededRandom(seed+2) * 3);
     }
 
-    draw(ctx: CanvasRenderingContext2D, zoom: number) {
+    draw(ctx: CanvasRenderingContext2D, zoom: number, settings: VFXSettings) {
         const sideWidth = 4 * zoom; // Shadow/3D effect width
 
         // Draw dark side for 3D effect
-        ctx.fillStyle = '#111';
+        ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.moveTo(this.x + this.width, this.y);
         ctx.lineTo(this.x + this.width + sideWidth, this.y - sideWidth);
@@ -51,7 +52,7 @@ class Building {
         ctx.fillRect(this.x, this.y, this.width, this.height);
         
         // Draw rooftop details
-        ctx.strokeStyle = '#555';
+        ctx.strokeStyle = `hsl(${settings.mapHue}, 20%, ${(settings.mapLightness as number) + 15}%)`;
         ctx.lineWidth = 1 * zoom;
         if (this.rooftopPattern === 1) { // Horizontal lines
             for (let i = 5; i < this.height; i += 10) {
@@ -87,15 +88,19 @@ class Vehicle {
     seed: number;
     timeOffset: number;
 
-    constructor(seed: number, isVertical: boolean, streetPosition: number, streetWidth: number, zoom: number) {
+    constructor(seed: number, isVertical: boolean, streetPosition: number, streetWidth: number, zoom: number, settings: VFXSettings) {
         this.seed = seed;
         this.isVertical = isVertical;
         this.speed = seededRandom(seed) * 50 + 20; // pixels per second
         this.timeOffset = seededRandom(seed + 1) * 100;
-        this.size = { w: 3 * zoom, h: 6 * zoom };
-        if(this.isVertical) [this.size.w, this.size.h] = [this.size.h, this.size.w];
         
-        const laneOffset = seededRandom(seed + 2) * (streetWidth - this.size.w);
+        if (isVertical) {
+            this.size = { w: 3 * zoom, h: 6 * zoom };
+        } else {
+            this.size = { w: 6 * zoom, h: 3 * zoom };
+        }
+        
+        const laneOffset = seededRandom(seed + 2) * (streetWidth - (isVertical ? this.size.w : this.size.h));
         
         if (isVertical) {
             this.x = streetPosition + laneOffset;
@@ -105,7 +110,8 @@ class Vehicle {
             this.y = streetPosition + laneOffset;
         }
         
-        this.color = seededRandom(seed+3) > 0.3 ? '#ffb' : '#f66'; // Yellow or Red headlights
+        const headlightHue = seededRandom(seed+3) > 0.3 ? 60 : 0; // yellow or red
+        this.color = `hsl(${headlightHue}, 100%, ${settings.headlightLightness as number}%)`;
     }
 
     update(time: number, bounds: { width: number, height: number }) {
@@ -159,6 +165,10 @@ export class DroneViewEffect implements VFXEffect {
         scanlineOpacity: 0.1,
         showLatitudeLines: true,
         showSearchLines: true,
+        mapHue: 200,
+        mapLightness: 15,
+        headlightLightness: 80,
+        mapBlur: 0,
     };
 
     constructor() {
@@ -182,43 +192,60 @@ export class DroneViewEffect implements VFXEffect {
         this.streets = [];
         const zoom = this.settings.zoom as number;
         const buildingDensity = (this.settings.buildingDensity as number) / 100;
-
+        
         const streetWidth = 20 * zoom;
-        let currentPos = 0;
         let seed = 0;
 
-        // Horizontal Streets & Buildings
-        while (currentPos < this.height) {
-            this.streets.push({ pos: currentPos, width: streetWidth, isVertical: false });
-            currentPos += streetWidth;
+        // Generate vertical streets first and store their positions
+        const verticalStreets: { pos: number, width: number }[] = [];
+        let currentX = (seededRandom(seed++) * 100 + 50) * zoom * buildingDensity; // Start with an initial block
+        while (currentX < this.width) {
+            const street = { pos: currentX, width: streetWidth, isVertical: true };
+            this.streets.push(street);
+            verticalStreets.push(street);
+            currentX += streetWidth; // The street itself
+            currentX += (seededRandom(seed++) * 200 + 100) * zoom * buildingDensity; // The building block
+        }
+        
+        // Generate horizontal streets and the buildings between vertical streets
+        let currentY = 0;
+        seed = 1000; // Reset seed for determinism in the other axis
+        while (currentY < this.height) {
+            this.streets.push({ pos: currentY, width: streetWidth, isVertical: false });
+            currentY += streetWidth;
             const blockHeight = (seededRandom(seed++) * 200 + 50) * zoom * buildingDensity;
-            if (currentPos + blockHeight < this.height) {
-                 // Add buildings for this block
-                 let bX = 0;
-                 while (bX < this.width) {
-                     const bW = (seededRandom(seed++) * 150 + 40) * zoom * buildingDensity;
-                     if (bX + bW < this.width) {
-                        this.buildings.push(new Building(bX, currentPos, bW, blockHeight, seed));
-                     }
-                     bX += bW + streetWidth;
-                 }
+
+            if (currentY + blockHeight > this.height) break;
+            
+            // Iterate through the spaces between vertical streets to place buildings
+            let lastVStreetEdge = 0;
+            verticalStreets.forEach(vStreet => {
+                const blockX = lastVStreetEdge;
+                const blockWidth = vStreet.pos - lastVStreetEdge;
+                if (blockWidth > streetWidth) { // Only add buildings if there's enough space
+                    this.buildings.push(new Building(blockX, currentY, blockWidth, blockHeight, seed++, this.settings));
+                }
+                lastVStreetEdge = vStreet.pos + vStreet.width;
+            });
+            // Add buildings in the last block after the final vertical street
+            if (lastVStreetEdge < this.width) {
+                const blockX = lastVStreetEdge;
+                const blockWidth = this.width - lastVStreetEdge;
+                if (blockWidth > streetWidth) {
+                    this.buildings.push(new Building(blockX, currentY, blockWidth, blockHeight, seed++, this.settings));
+                }
             }
-            currentPos += blockHeight;
+
+            currentY += blockHeight;
         }
 
-        // Vertical Streets
-        currentPos = 0;
-        while (currentPos < this.width) {
-            this.streets.push({ pos: currentPos, width: streetWidth, isVertical: true });
-            currentPos += (seededRandom(seed++) * 200 + 100) * zoom * buildingDensity;
-        }
 
         // Vehicles
         const trafficDensity = (this.settings.trafficDensity as number) / 100;
         this.streets.forEach((street, i) => {
             const numCars = Math.floor(trafficDensity * (street.isVertical ? this.height : this.width) / (50 * zoom));
             for(let j = 0; j < numCars; j++) {
-                this.vehicles.push(new Vehicle(i*100 + j, street.isVertical, street.pos, street.width, zoom));
+                this.vehicles.push(new Vehicle(i*100 + j, street.isVertical, street.pos, street.width, zoom, this.settings));
             }
         });
     }
@@ -249,12 +276,23 @@ export class DroneViewEffect implements VFXEffect {
         // Background / Streets
         ctx.fillStyle = STREET_COLOR;
         ctx.fillRect(0, 0, this.width, this.height);
+        
+        // Apply blur if any
+        const mapBlur = this.settings.mapBlur as number;
+        if (mapBlur > 0) {
+            ctx.filter = `blur(${mapBlur}px)`;
+        }
 
         // Buildings
-        this.buildings.forEach(b => b.draw(ctx, this.settings.zoom as number));
+        this.buildings.forEach(b => b.draw(ctx, this.settings.zoom as number, this.settings));
         
         // Vehicles
         this.vehicles.forEach(v => v.draw(ctx));
+
+        // Reset filter
+        if (mapBlur > 0) {
+            ctx.filter = 'none';
+        }
     }
     
     drawUI(ctx: CanvasRenderingContext2D) {
@@ -268,18 +306,18 @@ export class DroneViewEffect implements VFXEffect {
         }
 
         // GPS coordinates
-        ctx.font = `bold 14px "Source Code Pro"`;
+        ctx.font = `bold 16px "Source Code Pro"`;
         ctx.fillStyle = color;
         ctx.textAlign = 'left';
-        const lat = (34.0522 + (seededRandom(Math.floor(this.currentTime*10)) - 0.5) * 0.01).toFixed(6);
-        const lon = (-118.2437 + (seededRandom(Math.floor(this.currentTime*10)+1) - 0.5) * 0.01).toFixed(6);
+        const lat = (34.0522 + (seededRandom(Math.floor(this.currentTime*10)) - 0.5) * 0.001).toFixed(6);
+        const lon = (-118.2437 + (seededRandom(Math.floor(this.currentTime*10)+1) - 0.5) * 0.001).toFixed(6);
         ctx.fillText(`GPS: ${lat}, ${lon}`, 20, 30);
         ctx.fillText(`ALT: ${(200 + Math.sin(this.currentTime) * 10).toFixed(2)}m`, 20, 50);
 
         // Latitude Lines
         if (showLatitudeLines) {
             ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 0.2)`;
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 2;
             for(let i = 1; i < 5; i++) {
                 const y = i * this.height / 5;
                 ctx.beginPath();
@@ -306,7 +344,7 @@ export class DroneViewEffect implements VFXEffect {
             const targetX = seededRandom(Math.floor(this.currentTime * 2)) * this.width;
 
             ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 0.6)`;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 3;
             
             // Horizontal sweep
             ctx.beginPath();
@@ -328,59 +366,31 @@ export class DroneViewEffect implements VFXEffect {
     render(ctx: CanvasRenderingContext2D) {
         if (!this.width || !this.height) return;
 
-        // Draw main scene to buffer
+        // Draw main scene and UI to buffer
         this.bufferCtx.clearRect(0, 0, this.width, this.height);
         this.drawScene(this.bufferCtx);
+        this.drawUI(this.bufferCtx);
 
+        // Render buffer to main canvas with effects
+        ctx.clearRect(0, 0, this.width, this.height);
         const ca = this.settings.chromaticAberration as number;
-
         if (ca > 0) {
-            // Chromatic Aberration
+            // A simplified but effective chromatic aberration effect
             ctx.globalCompositeOperation = 'lighter';
             
             // Red channel
             ctx.drawImage(this.bufferCanvas, ca, 0);
-            ctx.globalCompositeOperation = 'difference';
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0,0,this.width, this.height);
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.fillStyle = 'red';
-            ctx.fillRect(0,0,this.width, this.height);
-            ctx.globalCompositeOperation = 'difference';
-            ctx.drawImage(this.bufferCanvas, 0, 0);
-            ctx.globalCompositeOperation = 'screen';
             
-            // Green channel
-            ctx.drawImage(this.bufferCanvas, -ca, ca);
-            ctx.globalCompositeOperation = 'difference';
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0,0,this.width, this.height);
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.fillStyle = 'green';
-            ctx.fillRect(0,0,this.width, this.height);
-            ctx.globalCompositeOperation = 'difference';
+            // Green channel (often shifted differently or not at all)
             ctx.drawImage(this.bufferCanvas, 0, 0);
-            ctx.globalCompositeOperation = 'screen';
 
             // Blue channel
-            ctx.drawImage(this.bufferCanvas, 0, -ca);
-            ctx.globalCompositeOperation = 'difference';
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0,0,this.width, this.height);
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.fillStyle = 'blue';
-            ctx.fillRect(0,0,this.width, this.height);
-            ctx.globalCompositeOperation = 'difference';
-            ctx.drawImage(this.bufferCanvas, 0, 0);
-            ctx.globalCompositeOperation = 'screen';
+            ctx.drawImage(this.bufferCanvas, -ca, 0);
 
             ctx.globalCompositeOperation = 'source-over';
         } else {
             ctx.drawImage(this.bufferCanvas, 0, 0);
         }
-        
-        // Draw UI overlays on top
-        this.drawUI(ctx);
     }
     
     getSettings(): VFXSettings { return this.settings; }
