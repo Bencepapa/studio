@@ -11,7 +11,7 @@ class Building {
     height: number;
     color: string;
     rooftopColor: string;
-    rooftopPattern: number; // 0 for solid, 1 for lines, 2 for grid
+    rooftopPattern: number; // 0 for solid, 1 for lines
 
     constructor(x: number, y: number, width: number, height: number, seed: number, settings: VFXSettings) {
         this.x = x;
@@ -23,7 +23,7 @@ class Building {
         this.rooftopColor = `hsl(${settings.mapHue}, 20%, ${baseLightness}%)`;
         this.color = `hsl(${settings.mapHue}, 20%, ${baseLightness - 5}%)`; // Sightly darker side
 
-        this.rooftopPattern = Math.floor(seededRandom(seed+2) * 3);
+        this.rooftopPattern = Math.floor(seededRandom(seed+2) * 2); // Only 0 or 1
     }
 
     draw(ctx: CanvasRenderingContext2D, zoom: number, settings: VFXSettings) {
@@ -59,19 +59,6 @@ class Building {
                 ctx.beginPath();
                 ctx.moveTo(this.x, this.y + i);
                 ctx.lineTo(this.x + this.width, this.y + i);
-                ctx.stroke();
-            }
-        } else if (this.rooftopPattern === 2) { // Grid
-             for (let i = 10; i < this.height; i += 10) {
-                ctx.beginPath();
-                ctx.moveTo(this.x, this.y + i);
-                ctx.lineTo(this.x + this.width, this.y + i);
-                ctx.stroke();
-            }
-             for (let i = 10; i < this.width; i += 10) {
-                ctx.beginPath();
-                ctx.moveTo(this.x + i, this.y);
-                ctx.lineTo(this.x + i, this.y + this.height);
                 ctx.stroke();
             }
         }
@@ -130,12 +117,14 @@ class Vehicle {
 
         // Draw headlights
         ctx.fillStyle = this.color;
-        if(this.isVertical) {
-            ctx.fillRect(this.x, this.y, 1, 1);
-            ctx.fillRect(this.x + this.size.w - 1, this.y, 1, 1);
-        } else {
-            ctx.fillRect(this.x, this.y, 1, 1);
+        if (this.isVertical) {
+            // Headlights at the bottom, since y increases downwards
             ctx.fillRect(this.x, this.y + this.size.h - 1, 1, 1);
+            ctx.fillRect(this.x + this.size.w - 1, this.y + this.size.h - 1, 1, 1);
+        } else {
+            // Headlights at the right, since x increases to the right
+            ctx.fillRect(this.x + this.size.w - 1, this.y, 1, 1);
+            ctx.fillRect(this.x + this.size.w - 1, this.y + this.size.h - 1, 1, 1);
         }
     }
 }
@@ -316,8 +305,10 @@ export class DroneViewEffect implements VFXEffect {
 
         // Latitude Lines
         if (showLatitudeLines) {
+            const baseLat = 34.0;
+            const baseLon = -118.5;
             ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 0.2)`;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 3;
             for(let i = 1; i < 5; i++) {
                 const y = i * this.height / 5;
                 ctx.beginPath();
@@ -332,8 +323,10 @@ export class DroneViewEffect implements VFXEffect {
                 ctx.stroke();
 
                 ctx.fillStyle = `hsla(${hue}, 80%, 70%, 0.4)`;
-                ctx.fillText(`LAT ${i*20}`, 5, y - 5);
-                ctx.fillText(`LON ${i*20}`, x + 5, 15);
+                const latLabel = (baseLat + i * 0.1).toFixed(1);
+                const lonLabel = (baseLon + i * 0.1).toFixed(1);
+                ctx.fillText(`LAT ${latLabel}`, 5, y - 5);
+                ctx.fillText(`LON ${lonLabel}`, x + 5, 15);
             }
         }
         
