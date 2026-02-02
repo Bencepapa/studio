@@ -116,6 +116,30 @@ export function ControlPanel({
   const renderSettingControl = (key: string, value: any) => {
     const label = key.replace(/([A-Z])/g, " $1");
 
+    if (key === 'innerEffect' && effectKey === 'effect-window') {
+      return (
+        <div key={key} className="space-y-2">
+          <Label htmlFor={key} className="capitalize text-xs">
+            Inner Effect
+          </Label>
+          <Select value={value} onValueChange={(v) => onSettingsChange({ [key]: v })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select an effect" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(availableEffects)
+                .filter(([key]) => key !== 'effect-window') // Prevent recursion
+                .map(([key, effect]) => (
+                  <SelectItem key={key} value={key}>
+                    {effect.effectName}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
     if (key === 'progressBarPattern' && effectKey === 'cyberdeck-startup') {
       return (
         <div key={key} className="space-y-2">
@@ -321,13 +345,14 @@ export function ControlPanel({
       const isSpeed = key.toLowerCase().includes('speed');
       const isCount = key.toLowerCase().includes('count');
       const isRibbonWidth = key === 'ribbonWidth';
-      const isTarget = key === 'targetX' || key === 'targetY';
+      const isSpeechTarget = key.startsWith('target');
       const isCornerRadius = key === 'cornerRadius';
       const isDisplayDuration = key === 'displayDuration';
       const isMapBlur = key === 'mapBlur';
       const isMapLightness = key === 'mapLightness';
       const isHeadlightLightness = key === 'headlightLightness';
       const isCameraSway = key === 'cameraSway';
+      const isWindowControl = key.startsWith('window');
 
 
       const min = isSpeed ? -2 : 0;
@@ -339,7 +364,7 @@ export function ControlPanel({
         max = 10;
       } else if (isRibbonWidth) {
         max = viewportWidth;
-      } else if (isTarget || isHeadlightLightness) {
+      } else if (isSpeechTarget || isWindowControl || isHeadlightLightness) {
         max = 100;
       } else if (isCornerRadius || isMapLightness || isCameraSway) {
         max = 50;
@@ -350,12 +375,12 @@ export function ControlPanel({
         max = 200;
       }
       
-      const step = isSpeed || isDisplayDuration || isMapBlur ? 0.1 : (isCount || isRibbonWidth || isTarget || isCornerRadius || isMapLightness || isHeadlightLightness || isCameraSway ? 1 : 0.1);
+      const step = isSpeed || isDisplayDuration || isMapBlur ? 0.1 : (isCount || isRibbonWidth || isSpeechTarget || isCornerRadius || isMapLightness || isHeadlightLightness || isCameraSway || isWindowControl ? 1 : 0.1);
       
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="capitalize text-xs">
-            {label} ({value.toFixed(isSpeed || isDisplayDuration || isMapBlur ? (isSpeed ? 2: 1) : (isCount || isRibbonWidth || isTarget || isCornerRadius || isMapLightness || isHeadlightLightness || isCameraSway ? 0 : 1))})
+            {label} ({value.toFixed(isSpeed || isDisplayDuration || isMapBlur ? (isSpeed ? 2: 1) : (isCount || isRibbonWidth || isSpeechTarget || isCornerRadius || isMapLightness || isHeadlightLightness || isCameraSway || isWindowControl ? 0 : 1))})
           </Label>
           <Slider
             id={key}
@@ -481,7 +506,11 @@ export function ControlPanel({
             <span>Parameters</span>
           </SidebarGroupLabel>
           <div className="space-y-4 p-2">
-            {Object.entries(settings).map(([key, value]) => renderSettingControl(key, value))}
+            {Object.entries(settings).map(([key, value]) => {
+                // Don't render the injected availableEffects map
+                if (key === 'availableEffects') return null;
+                return renderSettingControl(key, value);
+            })}
           </div>
         </SidebarGroup>
       </SidebarContent>

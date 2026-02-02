@@ -47,12 +47,14 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { GameUiBackground } from "@/components/game-ui-background";
 import { WelcomeEffect } from "@/effects/welcome";
+import { EffectWindowEffect } from "@/effects/effect-window";
 
 const availableEffects: Record<string, VFXEffectClass> = {
+  "welcome": WelcomeEffect,
+  "effect-window": EffectWindowEffect,
   "drone-view": DroneViewEffect,
   "cpu-trace": CPUTraceEffect,
   "circuit-logo": CircuitLogoEffect,
-  "welcome": WelcomeEffect,
   "game-menu": GameMenuEffect,
   "cyberdeck-startup": CyberdeckStartupEffect,
   "data-cubes": DataCubesEffect,
@@ -129,10 +131,18 @@ export default function Home() {
   };
 
 
-  const currentSettings = React.useMemo(() => ({
-      ...CurrentEffect.defaultSettings,
-      ...(settings[effectKey] || {}),
-    }), [CurrentEffect, settings, effectKey]);
+  const currentSettings = React.useMemo(() => {
+      const baseSettings = {
+        ...CurrentEffect.defaultSettings,
+        ...(settings[effectKey] || {}),
+      };
+      // For the EffectWindow, we need to inject the map of available effects
+      // so it can instantiate the inner effect.
+      if (effectKey === 'effect-window') {
+          baseSettings.availableEffects = availableEffects;
+      }
+      return baseSettings;
+    }, [CurrentEffect, settings, effectKey]);
 
   const cyberMatrixBg = PlaceHolderImages.find(img => img.id === 'cyber-matrix-background');
 
