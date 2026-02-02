@@ -333,6 +333,23 @@ export function ControlPanel({
           </div>
         );
        }
+       if (key === 'packetSize' && effectKey === 'zombie-network') {
+        return (
+          <div key={key} className="space-y-2">
+            <Label htmlFor={key} className="capitalize text-xs">
+              {label} ({value})
+            </Label>
+            <Slider
+              id={key}
+              min={1}
+              max={10}
+              step={1}
+              value={[value]}
+              onValueChange={([v]) => onSettingsChange({ [key]: v })}
+            />
+          </div>
+        );
+       }
       
       const isSpeed = key.toLowerCase().includes('speed');
       const isCount = key.toLowerCase().includes('count') || key.toLowerCase().includes('computers');

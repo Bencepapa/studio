@@ -38,11 +38,11 @@ class NodeComputer {
         }
     }
 
-    startWork(time: number) {
+    startWork(time: number, packetSize: number) {
         if (!this.isWorking) {
             this.isWorking = true;
             this.workStartTime = time;
-            this.workDuration = seededRandom(this.id + time) * 2 + (4 - this.level); // Higher level = faster
+            this.workDuration = (seededRandom(this.id + time) * 2 + (4 - this.level)) * packetSize;
             this.lastPacketTime = time;
         }
     }
@@ -111,12 +111,14 @@ class Packet {
     startTime: number;
     duration: number;
     isArrived: boolean = false;
+    packetSize: number;
     
-    constructor(startX: number, startY: number, target: NodeComputer, time: number, packetSpeed: number) {
+    constructor(startX: number, startY: number, target: NodeComputer, time: number, packetSpeed: number, packetSize: number) {
         this.startX = startX;
         this.startY = startY;
         this.target = target;
         this.startTime = time;
+        this.packetSize = packetSize;
         
         const distance = Math.sqrt(Math.pow(target.x - startX, 2) + Math.pow(target.y - startY, 2));
         this.duration = distance / (packetSpeed * 100);
@@ -131,7 +133,7 @@ class Packet {
         const timeSinceStart = time - this.startTime;
         if (timeSinceStart >= this.duration) {
             this.isArrived = true;
-            this.target.startWork(time);
+            this.target.startWork(time, this.packetSize);
             return;
         }
 
@@ -163,6 +165,7 @@ export class ZombieNetworkEffect implements VFXEffect {
         hue: 200,
         hackerHue: 0,
         packetSpeed: 2, // multiplier
+        packetSize: 1, // multiplier
     };
 
     private settings: VFXSettings = ZombieNetworkEffect.defaultSettings;
@@ -177,6 +180,7 @@ export class ZombieNetworkEffect implements VFXEffect {
     // Metrics
     private totalDataProcessed: number = 0;
     private lastPacketSendTime: number = -1;
+    private currentTime: number = 0;
 
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
         this.canvas = canvas;
@@ -231,6 +235,11 @@ export class ZombieNetworkEffect implements VFXEffect {
             return;
         }
 
+        if (time < this.currentTime) { // Loop detected
+            this.init(this.canvas, this.settings);
+        }
+        this.currentTime = time;
+
         // Update nodes and collect processed data
         this.nodes.forEach(node => {
             this.totalDataProcessed += node.update(time);
@@ -245,18 +254,12 @@ export class ZombieNetworkEffect implements VFXEffect {
         if (time > this.lastPacketSendTime + packetInterval) {
             const idleNodes = this.nodes.filter(n => !n.isWorking);
             if (idleNodes.length > 0 && this.hackerNode) {
-                // Find nearest idle node to send a packet to
-                let nearestNode: NodeComputer | null = null;
-                let minDist = Infinity;
-                for(const node of idleNodes) {
-                    const dist = Math.sqrt(Math.pow(node.x - this.hackerNode.x, 2) + Math.pow(node.y - this.hackerNode.y, 2));
-                    if(dist < minDist) {
-                        minDist = dist;
-                        nearestNode = node;
-                    }
-                }
-                if (nearestNode) {
-                    this.packets.push(new Packet(this.hackerNode.x, this.hackerNode.y, nearestNode, time, this.settings.packetSpeed as number));
+                const randomIndex = Math.floor(seededRandom(time) * idleNodes.length);
+                const randomNode = idleNodes[randomIndex];
+                
+                if (randomNode) {
+                    const packetSize = this.settings.packetSize as number;
+                    this.packets.push(new Packet(this.hackerNode.x, this.hackerNode.y, randomNode, time, this.settings.packetSpeed as number, packetSize));
                     this.lastPacketSendTime = time;
                 }
             }
