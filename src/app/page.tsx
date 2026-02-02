@@ -197,6 +197,8 @@ export default function Home() {
           onSettingsChange={handleSettingsChange}
           background={background}
           onBackgroundChange={setBackground}
+          speed={speed}
+          onSpeedChange={setSpeed}
         />
       </Sidebar>
       <SidebarInset className="flex flex-col !m-0 !rounded-none min-h-screen">
@@ -255,8 +257,6 @@ export default function Home() {
             <PlayerControls
               isPlaying={isPlaying}
               onIsPlayingChange={setIsPlaying}
-              speed={speed}
-              onSpeedChange={setSpeed}
               time={time}
               onTimeChange={setTime}
               duration={duration}

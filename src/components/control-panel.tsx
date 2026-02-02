@@ -8,6 +8,7 @@ import {
   FileText,
   Loader2,
   Layers,
+  Gauge,
 } from "lucide-react";
 import {
   SidebarHeader,
@@ -52,6 +53,8 @@ interface ControlPanelProps {
   onSettingsChange: (settings: Partial<VFXSettings>) => void;
   background: string;
   onBackgroundChange: (background: string) => void;
+  speed: number;
+  onSpeedChange: (speed: number) => void;
 }
 
 export function ControlPanel({
@@ -62,6 +65,8 @@ export function ControlPanel({
   onSettingsChange,
   background,
   onBackgroundChange,
+  speed,
+  onSpeedChange,
 }: ControlPanelProps) {
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [instructions, setInstructions] = React.useState<string | null>(null);
@@ -430,6 +435,28 @@ export function ControlPanel({
               <SelectItem value="cyber-matrix">Cyber Matrix</SelectItem>
             </SelectContent>
           </Select>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarGroupLabel>
+            <Gauge />
+            <span>Playback Speed</span>
+          </SidebarGroupLabel>
+          <div className="space-y-2 p-2">
+            <div className="space-y-2">
+              <Label htmlFor="speed-slider">Speed ({speed.toFixed(2)}x)</Label>
+              <Slider
+                id="speed-slider"
+                min={-5}
+                max={5}
+                step={0.1}
+                value={[speed]}
+                onValueChange={([v]) => onSpeedChange(v)}
+              />
+            </div>
+          </div>
         </SidebarGroup>
         
         <SidebarSeparator />

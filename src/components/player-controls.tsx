@@ -6,7 +6,6 @@ import {
   Play,
   Pause,
   Rewind,
-  FastForward,
   Repeat,
   Repeat1,
 } from "lucide-react";
@@ -22,8 +21,6 @@ import {
 interface PlayerControlsProps {
   isPlaying: boolean;
   onIsPlayingChange: (playing: boolean) => void;
-  speed: number;
-  onSpeedChange: (speed: number) => void;
   time: number;
   onTimeChange: (time: number) => void;
   duration: number;
@@ -41,8 +38,6 @@ const formatTime = (seconds: number) => {
 export function PlayerControls({
   isPlaying,
   onIsPlayingChange,
-  speed,
-  onSpeedChange,
   time,
   onTimeChange,
   duration,
@@ -50,16 +45,6 @@ export function PlayerControls({
   onLoopChange,
   onIsScrubbingChange,
 }: PlayerControlsProps) {
-  const [originalSpeed, setOriginalSpeed] = React.useState(speed);
-
-  const handleFastForwardDown = () => {
-    setOriginalSpeed(speed);
-    onSpeedChange(2);
-  };
-
-  const handleFastForwardUp = () => {
-    onSpeedChange(originalSpeed);
-  };
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-10 p-4 bg-gradient-to-t from-black/50 to-transparent">
@@ -99,32 +84,6 @@ export function PlayerControls({
             {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
           </Button>
           
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-white"
-                  onMouseDown={handleFastForwardDown}
-                  onMouseUp={handleFastForwardUp}
-                  onMouseLeave={handleFastForwardUp}
-                  onTouchStart={(e) => {
-                    e.preventDefault();
-                    handleFastForwardDown();
-                  }}
-                  onTouchEnd={(e) => {
-                    e.preventDefault();
-                    handleFastForwardUp();
-                  }}
-                >
-                  <FastForward />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Hold to Fast-Forward (2x)</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
