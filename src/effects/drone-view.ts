@@ -115,6 +115,7 @@ class Vehicle {
 }
 
 class PoliceCar {
+    id: number;
     x: number;
     y: number;
     speed: number = 150; // Faster than normal traffic
@@ -125,18 +126,18 @@ class PoliceCar {
     constructor(
       seed: number,
       startStreet: { pos: number; width: number; isVertical: boolean },
-      zoom: number,
       canvasWidth: number,
       canvasHeight: number
     ) {
+        this.id = seed;
         this.currentStreet = startStreet;
 
         if (this.currentStreet.isVertical) {
-            this.size = { w: 4 * zoom, h: 8 * zoom };
+            this.size = { w: 4, h: 8 };
             this.x = this.currentStreet.pos + (this.currentStreet.width - this.size.w) / 2;
             this.y = seededRandom(seed) > 0.5 ? -this.size.h - SWAY_PADDING : canvasHeight + SWAY_PADDING;
         } else {
-            this.size = { w: 8 * zoom, h: 4 * zoom };
+            this.size = { w: 8, h: 4 };
             this.x = seededRandom(seed) > 0.5 ? -this.size.w - SWAY_PADDING : canvasWidth + SWAY_PADDING;
             this.y = this.currentStreet.pos + (this.currentStreet.width - this.size.h) / 2;
         }
@@ -145,8 +146,13 @@ class PoliceCar {
     update(deltaTime: number, target: { x: number; y: number }, streets: { pos: number; width: number; isVertical: boolean }[]) {
         if (this.isStopped) return;
 
-        const stopDistance = 10;
-        if (Math.abs(this.x - target.x) < stopDistance && Math.abs(this.y - target.y) < stopDistance) {
+        const parkOffsetAngle = this.id * (Math.PI / 2) + Math.PI / 4; // Each car gets a 45 degree slot
+        const parkOffsetDistance = 15; 
+        const finalTargetX = target.x + Math.cos(parkOffsetAngle) * parkOffsetDistance;
+        const finalTargetY = target.y + Math.sin(parkOffsetAngle) * parkOffsetDistance;
+
+        const stopDistance = 5;
+        if (Math.abs(this.x - finalTargetX) < stopDistance && Math.abs(this.y - finalTargetY) < stopDistance) {
             this.isStopped = true;
             return;
         }
@@ -154,8 +160,8 @@ class PoliceCar {
         let moveAmount = this.speed * deltaTime;
 
         if (this.currentStreet.isVertical) {
-            const dx = target.x - this.x;
-            const dy = target.y - this.y;
+            const dx = finalTargetX - this.x;
+            const dy = finalTargetY - this.y;
 
             if (Math.abs(dx) > this.currentStreet.width) {
                 let nearestHStreet: { pos: number, width: number, isVertical: boolean } | null = null;
@@ -176,9 +182,7 @@ class PoliceCar {
                     } else {
                         // Switch street and orientation
                         this.y = nearestHStreet.pos + (nearestHStreet.width - this.size.w) / 2; // size.w is now the new height
-                        const temp = this.size.w;
-                        this.size.w = this.size.h;
-                        this.size.h = temp;
+                        [this.size.w, this.size.h] = [this.size.h, this.size.w];
                         this.currentStreet = nearestHStreet;
                     }
                 }
@@ -186,8 +190,8 @@ class PoliceCar {
                 this.y += Math.sign(dy) * moveAmount;
             }
         } else { // On horizontal street
-            const dx = target.x - this.x;
-            const dy = target.y - this.y;
+            const dx = finalTargetX - this.x;
+            const dy = finalTargetY - this.y;
             
             if (Math.abs(dy) > this.currentStreet.width) {
                  let nearestVStreet: { pos: number, width: number, isVertical: boolean } | null = null;
@@ -207,9 +211,7 @@ class PoliceCar {
                      } else {
                          // Switch street and orientation
                          this.x = nearestVStreet.pos + (nearestVStreet.width - this.size.h) / 2; // size.h is now the new width
-                         const temp = this.size.w;
-                         this.size.w = this.size.h;
-                         this.size.h = temp;
+                         [this.size.w, this.size.h] = [this.size.h, this.size.w];
                          this.currentStreet = nearestVStreet;
                      }
                  }
@@ -233,40 +235,37 @@ class PoliceCar {
         const color2 = isRedPhase ? 'hsl(200, 100%, 60%)' : 'hsl(0, 100%, 60%)';
         const glow1 = isRedPhase ? 'hsla(0, 100%, 60%, 0.7)' : 'hsla(200, 100%, 60%, 0.7)';
         const glow2 = isRedPhase ? 'hsla(200, 100%, 60%, 0.7)' : 'hsla(0, 100%, 60%, 0.7)';
-
+        
         const lightBarHeight = Math.max(2, this.size.h * 0.4);
         const lightBarWidth = Math.max(2, this.size.w * 0.4);
-        
+
         ctx.save();
         ctx.shadowBlur = 15;
-
-        // Corrected logic: Use this.currentStreet.isVertical
-        if (!this.currentStreet.isVertical) { // Horizontal Car
-            const yPos = this.y + (this.size.h - lightBarHeight) / 2;
-            
-            // Left light
-            ctx.shadowColor = glow1;
-            ctx.fillStyle = color1;
-            ctx.fillRect(this.x + this.size.w * 0.1, yPos, lightBarWidth, lightBarHeight);
-            
-            // Right light
-            ctx.shadowColor = glow2;
-            ctx.fillStyle = color2;
-            ctx.fillRect(this.x + this.size.w * 0.9 - lightBarWidth, yPos, lightBarWidth, lightBarHeight);
-
-        } else { // Vertical Car
-            const xPos = this.x + (this.size.w - lightBarWidth) / 2;
-            
-            // Top light
-            ctx.shadowColor = glow1;
-            ctx.fillStyle = color1;
-            ctx.fillRect(xPos, this.y + this.size.h * 0.1, lightBarWidth, lightBarHeight);
-
-            // Bottom light
-            ctx.shadowColor = glow2;
-            ctx.fillStyle = color2;
-            ctx.fillRect(xPos, this.y + this.size.h * 0.9 - lightBarHeight, lightBarWidth, lightBarHeight);
+        
+        // Draw roof-mounted light bar
+        const roofLightY = this.currentStreet.isVertical ? this.y + (this.size.h / 2) - 1 : this.y - 3;
+        const roofLightX = this.currentStreet.isVertical ? this.x - 1.5 : this.x + (this.size.w / 2) - 2;
+        const roofLightW = this.currentStreet.isVertical ? this.size.w + 3 : 4;
+        const roofLightH = this.currentStreet.isVertical ? 2 : this.size.h + 6;
+        
+        // Red light
+        ctx.shadowColor = glow1;
+        ctx.fillStyle = color1;
+        if (this.currentStreet.isVertical) {
+            ctx.fillRect(roofLightX, this.y + this.size.h * 0.2, roofLightW, this.size.h * 0.25);
+        } else {
+            ctx.fillRect(this.x + this.size.w * 0.2, roofLightY, this.size.w * 0.25, roofLightH);
         }
+        
+        // Blue light
+        ctx.shadowColor = glow2;
+        ctx.fillStyle = color2;
+        if (this.currentStreet.isVertical) {
+            ctx.fillRect(roofLightX, this.y + this.size.h * 0.55, roofLightW, this.size.h * 0.25);
+        } else {
+             ctx.fillRect(this.x + this.size.w * 0.55, roofLightY, this.size.w * 0.25, roofLightH);
+        }
+        
         ctx.restore();
     }
 }
@@ -400,7 +399,7 @@ export class DroneViewEffect implements VFXEffect {
         this.policeCars = [];
         for (let i = 0; i < count; i++) {
             const startStreet = this.streets[Math.floor(seededRandom(this.currentTime + i) * this.streets.length)];
-            const policeCar = new PoliceCar(i, startStreet, this.settings.zoom as number, this.width, this.height);
+            const policeCar = new PoliceCar(i, startStreet, this.width, this.height);
             this.policeCars.push(policeCar);
         }
     }
@@ -473,7 +472,6 @@ export class DroneViewEffect implements VFXEffect {
             const swayX = (sway > 0) ? Math.sin(this.currentTime * 0.3) * sway * 0.7 + Math.sin(this.currentTime * 0.7) * sway * 0.3 : 0;
             const swayY = (sway > 0) ? Math.sin(this.currentTime * 0.4) * sway * 0.7 + Math.sin(this.currentTime * 0.8) * sway * 0.3 : 0;
             
-            // Inverse transform: Screen -> Sway -> Zoom
             const targetInSwaySpaceX = this.capturePosition.x + swayX;
             const targetInSwaySpaceY = this.capturePosition.y + swayY;
             
@@ -669,40 +667,35 @@ export class DroneViewEffect implements VFXEffect {
 
         // 2. Draw the buffer to the main canvas with effects.
         const ca = this.settings.chromaticAberration as number;
-        
-        // The main canvas (`ctx`) is already cleared by the EffectPlayer.
+        ctx.clearRect(0, 0, this.width, this.height);
         
         if (ca > 0) {
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter'; // Use additive blending
-
-            // Red channel
+            // Draw red channel
             ctx.save();
             ctx.drawImage(this.bufferCanvas, -ca, 0);
             ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = 'rgb(255,0,0)';
-            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.fillStyle = `rgb(255,0,0)`;
+            ctx.fillRect(0,0,this.width, this.height);
             ctx.restore();
-            
-            // Green channel (no shift)
+
+            // Draw green channel and blend
             ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
             ctx.drawImage(this.bufferCanvas, 0, 0);
             ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = 'rgb(0,255,0)';
-            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.fillStyle = `rgb(0,255,0)`;
+            ctx.fillRect(0,0,this.width, this.height);
             ctx.restore();
 
-            // Blue channel
+            // Draw blue channel and blend
             ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
             ctx.drawImage(this.bufferCanvas, ca, 0);
             ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = 'rgb(0,0,255)';
-            ctx.fillRect(0, 0, this.width, this.height);
-            ctx.restore();
-
+            ctx.fillStyle = `rgb(0,0,255)`;
+            ctx.fillRect(0,0,this.width, this.height);
             ctx.restore();
         } else {
-            // No effect, just draw the buffer directly to the main canvas.
             ctx.drawImage(this.bufferCanvas, 0, 0);
         }
     }
