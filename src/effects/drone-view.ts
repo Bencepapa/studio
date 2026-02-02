@@ -428,7 +428,7 @@ export class DroneViewEffect implements VFXEffect {
 
                     for(let gx = startGridX; gx < endGridX; gx++){
                         for(let gy = startGridY; gy < endGridY; gy++){
-                            if(this.isStreet(gx, gy) === false) { // Check bounds
+                            if (gx >= 0 && gx < this.gridWidth && gy >= 0 && gy < this.gridHeight) {
                                 this.obstacleGrid[gx][gy] = 1;
                             }
                         }
@@ -448,9 +448,9 @@ export class DroneViewEffect implements VFXEffect {
                     const endGridY = Math.ceil((currentY + finalBlockHeight) / GRID_CELL_SIZE);
                     for(let gx = startGridX; gx < endGridX; gx++){
                         for(let gy = startGridY; gy < endGridY; gy++){
-                           if(this.isStreet(gx, gy) === false) { // Check bounds
+                           if (gx >= 0 && gx < this.gridWidth && gy >= 0 && gy < this.gridHeight) {
                                 this.obstacleGrid[gx][gy] = 1;
-                            }
+                           }
                         }
                     }
                 }
@@ -646,8 +646,6 @@ export class DroneViewEffect implements VFXEffect {
         ctx.fillText(`ALT: ${(200 + Math.sin(this.currentTime) * 10).toFixed(2)}m`, 20, 50);
 
         if (showLatitudeLines) {
-            const baseLat = 34.0;
-            const baseLon = -118.5;
             ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 0.6)`;
             ctx.lineWidth = 6;
             for(let i = 1; i < 5; i++) {
@@ -663,13 +661,6 @@ export class DroneViewEffect implements VFXEffect {
                     ctx.lineTo(x, y + 10);
                     ctx.stroke();
                 }
-
-                ctx.fillStyle = `hsla(${hue}, 80%, 70%, 0.5)`;
-                const latLabel = (baseLat + i * 0.1).toFixed(1);
-                const lonLabel = (baseLon + i * 0.1).toFixed(1);
-                const x = i * this.width / 5;
-                ctx.fillText(`${latLabel}`, 5, y - 5);
-                ctx.fillText(`${lonLabel}`, x + 5, 15);
             }
         }
         
@@ -732,7 +723,6 @@ export class DroneViewEffect implements VFXEffect {
         if (!this.width || !this.height) return;
 
         // 1. Draw the entire scene (map + UI) to the off-screen buffer.
-        this.bufferCtx.clearRect(0, 0, this.width, this.height);
         this.bufferCtx.save();
         
         const zoom = this.settings.zoom as number;
