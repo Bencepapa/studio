@@ -4,6 +4,7 @@ import type { VFXEffect, VFXEffectClass, VFXSettings } from './types';
 
 const STREET_COLOR = '#080808';
 const SWAY_PADDING = 120; // Padding to generate off-screen, must be > max cameraSway
+const GRID_CELL_SIZE = 10;
 
 class Building {
     x: number;
@@ -122,6 +123,7 @@ class PoliceCar {
     size: { w: number; h: number };
     currentStreet: { pos: number; width: number; isVertical: boolean };
     isStopped: boolean = false;
+    timeOffset: number;
 
     constructor(
       seed: number,
@@ -131,13 +133,17 @@ class PoliceCar {
     ) {
         this.id = seed;
         this.currentStreet = startStreet;
+        this.timeOffset = seededRandom(seed * 10) * 10;
+        
+        const baseSizeW = 4;
+        const baseSizeH = 8;
 
         if (this.currentStreet.isVertical) {
-            this.size = { w: 4, h: 8 };
+            this.size = { w: baseSizeW, h: baseSizeH };
             this.x = this.currentStreet.pos + (this.currentStreet.width - this.size.w) / 2;
             this.y = seededRandom(seed) > 0.5 ? -this.size.h - SWAY_PADDING : canvasHeight + SWAY_PADDING;
         } else {
-            this.size = { w: 8, h: 4 };
+            this.size = { w: baseSizeH, h: baseSizeW };
             this.x = seededRandom(seed) > 0.5 ? -this.size.w - SWAY_PADDING : canvasWidth + SWAY_PADDING;
             this.y = this.currentStreet.pos + (this.currentStreet.width - this.size.h) / 2;
         }
@@ -145,7 +151,7 @@ class PoliceCar {
 
     update(deltaTime: number, target: { x: number; y: number }, streets: { pos: number; width: number; isVertical: boolean }[]) {
         if (this.isStopped) return;
-
+        
         const parkOffsetAngle = this.id * (Math.PI / 2) + Math.PI / 4; // Each car gets a 45 degree slot
         const parkOffsetDistance = 15; 
         const finalTargetX = target.x + Math.cos(parkOffsetAngle) * parkOffsetDistance;
@@ -230,21 +236,16 @@ class PoliceCar {
         ctx.strokeRect(this.x, this.y, this.size.w, this.size.h);
 
         // Flashing lights
-        const isRedPhase = Math.floor(time * 10) % 2 === 0;
+        const isRedPhase = Math.floor((time + this.timeOffset) * 10) % 2 === 0;
         const color1 = isRedPhase ? 'hsl(0, 100%, 60%)' : 'hsl(200, 100%, 60%)';
         const color2 = isRedPhase ? 'hsl(200, 100%, 60%)' : 'hsl(0, 100%, 60%)';
         const glow1 = isRedPhase ? 'hsla(0, 100%, 60%, 0.7)' : 'hsla(200, 100%, 60%, 0.7)';
         const glow2 = isRedPhase ? 'hsla(200, 100%, 60%, 0.7)' : 'hsla(0, 100%, 60%, 0.7)';
         
-        const lightBarHeight = Math.max(2, this.size.h * 0.4);
-        const lightBarWidth = Math.max(2, this.size.w * 0.4);
-
         ctx.save();
         ctx.shadowBlur = 15;
         
         // Draw roof-mounted light bar
-        const roofLightY = this.currentStreet.isVertical ? this.y + (this.size.h / 2) - 1 : this.y - 3;
-        const roofLightX = this.currentStreet.isVertical ? this.x - 1.5 : this.x + (this.size.w / 2) - 2;
         const roofLightW = this.currentStreet.isVertical ? this.size.w + 3 : 4;
         const roofLightH = this.currentStreet.isVertical ? 2 : this.size.h + 6;
         
@@ -252,18 +253,18 @@ class PoliceCar {
         ctx.shadowColor = glow1;
         ctx.fillStyle = color1;
         if (this.currentStreet.isVertical) {
-            ctx.fillRect(roofLightX, this.y + this.size.h * 0.2, roofLightW, this.size.h * 0.25);
+            ctx.fillRect(this.x - 1.5, this.y + this.size.h * 0.2, roofLightW, this.size.h * 0.25);
         } else {
-            ctx.fillRect(this.x + this.size.w * 0.2, roofLightY, this.size.w * 0.25, roofLightH);
+            ctx.fillRect(this.x + this.size.w * 0.2, this.y - 3, this.size.w * 0.25, roofLightH);
         }
         
         // Blue light
         ctx.shadowColor = glow2;
         ctx.fillStyle = color2;
         if (this.currentStreet.isVertical) {
-            ctx.fillRect(roofLightX, this.y + this.size.h * 0.55, roofLightW, this.size.h * 0.25);
+            ctx.fillRect(this.x - 1.5, this.y + this.size.h * 0.55, roofLightW, this.size.h * 0.25);
         } else {
-             ctx.fillRect(this.x + this.size.w * 0.55, roofLightY, this.size.w * 0.25, roofLightH);
+             ctx.fillRect(this.x + this.size.w * 0.55, this.y - 3, this.size.w * 0.25, roofLightH);
         }
         
         ctx.restore();
@@ -279,14 +280,18 @@ export class DroneViewEffect implements VFXEffect {
     
     private width = 0;
     private height = 0;
+    private gridWidth = 0;
+    private gridHeight = 0;
     private currentTime = 0;
 
     private buildings: Building[] = [];
     private vehicles: Vehicle[] = [];
     private policeCars: PoliceCar[] = [];
     private streets: { pos: number, width: number, isVertical: boolean }[] = [];
+    private obstacleGrid: number[][] = [];
 
     private capturePosition: { x: number, y: number } | null = null;
+    private worldCapturePosition: { x: number, y: number } | null = null;
     private wasCapturing: boolean = false;
     private targetInfo: { ip: string, mac: string } | null = null;
 
@@ -315,6 +320,47 @@ export class DroneViewEffect implements VFXEffect {
         this.bufferCanvas = document.createElement('canvas');
         this.bufferCtx = this.bufferCanvas.getContext('2d')!;
     }
+    
+    private isStreet(gridX: number, gridY: number): boolean {
+        if (gridX < 0 || gridX >= this.gridWidth || gridY < 0 || gridY >= this.gridHeight) {
+            return false;
+        }
+        // Assuming streets are where obstacleGrid is 0
+        return this.obstacleGrid[gridX]?.[gridY] === 0;
+    }
+
+    private findNearestStreet(targetWorldX: number, targetWorldY: number): { x: number, y: number } {
+        const startGridX = Math.floor(targetWorldX / GRID_CELL_SIZE);
+        const startGridY = Math.floor(targetWorldY / GRID_CELL_SIZE);
+
+        if (this.isStreet(startGridX, startGridY)) {
+            return { x: targetWorldX, y: targetWorldY };
+        }
+
+        let x = 0, y = 0, dx = 0, dy = -1;
+        // Spiral search for the nearest non-obstacle cell
+        for (let i = 0; i < Math.pow(Math.max(this.gridWidth, this.gridHeight), 2); i++) {
+            const currentGridX = startGridX + x;
+            const currentGridY = startGridY + y;
+            
+            if (this.isStreet(currentGridX, currentGridY)) {
+                // Found a street, return its world coordinates
+                return { 
+                    x: currentGridX * GRID_CELL_SIZE + GRID_CELL_SIZE / 2, 
+                    y: currentGridY * GRID_CELL_SIZE + GRID_CELL_SIZE / 2 
+                };
+            }
+
+            if ((x === y) || (x < 0 && x === -y) || (x > 0 && x === 1 - y)) {
+                [dx, dy] = [-dy, dx]; // change direction
+            }
+            x += dx;
+            y += dy;
+        }
+
+        // Fallback to the original target if somehow no street is found (should be impossible)
+        return { x: targetWorldX, y: targetWorldY };
+    }
 
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
         this.canvas = canvas;
@@ -331,23 +377,28 @@ export class DroneViewEffect implements VFXEffect {
         this.vehicles = [];
         this.policeCars = [];
         this.streets = [];
+        this.obstacleGrid = [];
         const zoom = this.settings.zoom as number;
         const buildingDensity = (this.settings.buildingDensity as number) / 100;
         
-        const streetWidth = 20 * zoom;
+        const streetWidth = 20; // world units, not scaled by zoom
         let seed = 0;
         
         const generationWidth = this.width + SWAY_PADDING * 2;
         const generationHeight = this.height + SWAY_PADDING * 2;
 
+        this.gridWidth = Math.ceil(generationWidth / GRID_CELL_SIZE);
+        this.gridHeight = Math.ceil(generationHeight / GRID_CELL_SIZE);
+        this.obstacleGrid = Array(this.gridWidth).fill(0).map(() => Array(this.gridHeight).fill(0));
+
         const verticalStreets: { pos: number, width: number }[] = [];
-        let currentX = -SWAY_PADDING + (seededRandom(seed++) * 100 + 50) * zoom * buildingDensity;
+        let currentX = -SWAY_PADDING + (seededRandom(seed++) * 100 + 50);
         while (currentX < generationWidth - SWAY_PADDING) {
             const street = { pos: currentX, width: streetWidth, isVertical: true };
             this.streets.push(street);
             verticalStreets.push(street);
             currentX += streetWidth;
-            currentX += (seededRandom(seed++) * 200 + 100) * zoom * buildingDensity;
+            currentX += (seededRandom(seed++) * 200 + 100) * buildingDensity;
         }
         
         let currentY = -SWAY_PADDING;
@@ -357,9 +408,9 @@ export class DroneViewEffect implements VFXEffect {
             currentY += streetWidth;
             
             const remainingHeight = generationHeight - SWAY_PADDING - currentY;
-            if (remainingHeight < 20 * zoom) break;
+            if (remainingHeight < 20) break;
             
-            const blockHeight = (seededRandom(seed++) * 200 + 50) * zoom * buildingDensity;
+            const blockHeight = (seededRandom(seed++) * 200 + 50) * buildingDensity;
             const finalBlockHeight = Math.min(blockHeight, remainingHeight);
             if(finalBlockHeight <= 0) break;
 
@@ -369,6 +420,19 @@ export class DroneViewEffect implements VFXEffect {
                 const blockWidth = vStreet.pos - lastVStreetEdge;
                 if (blockWidth > streetWidth) {
                     this.buildings.push(new Building(blockX, currentY, blockWidth, finalBlockHeight, seed++));
+                    
+                    const startGridX = Math.floor(blockX / GRID_CELL_SIZE);
+                    const endGridX = Math.ceil((blockX + blockWidth) / GRID_CELL_SIZE);
+                    const startGridY = Math.floor(currentY / GRID_CELL_SIZE);
+                    const endGridY = Math.ceil((currentY + finalBlockHeight) / GRID_CELL_SIZE);
+
+                    for(let gx = startGridX; gx < endGridX; gx++){
+                        for(let gy = startGridY; gy < endGridY; gy++){
+                            if(this.isStreet(gx, gy) === false) { // Check bounds
+                                this.obstacleGrid[gx][gy] = 1;
+                            }
+                        }
+                    }
                 }
                 lastVStreetEdge = vStreet.pos + vStreet.width;
             });
@@ -377,6 +441,18 @@ export class DroneViewEffect implements VFXEffect {
                 const blockWidth = (generationWidth - SWAY_PADDING) - lastVStreetEdge;
                 if (blockWidth > streetWidth) {
                     this.buildings.push(new Building(blockX, currentY, blockWidth, finalBlockHeight, seed++));
+
+                    const startGridX = Math.floor(blockX / GRID_CELL_SIZE);
+                    const endGridX = Math.ceil((blockX + blockWidth) / GRID_CELL_SIZE);
+                    const startGridY = Math.floor(currentY / GRID_CELL_SIZE);
+                    const endGridY = Math.ceil((currentY + finalBlockHeight) / GRID_CELL_SIZE);
+                    for(let gx = startGridX; gx < endGridX; gx++){
+                        for(let gy = startGridY; gy < endGridY; gy++){
+                           if(this.isStreet(gx, gy) === false) { // Check bounds
+                                this.obstacleGrid[gx][gy] = 1;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -386,9 +462,9 @@ export class DroneViewEffect implements VFXEffect {
         const trafficDensity = (this.settings.trafficDensity as number) / 100;
         this.streets.forEach((street, i) => {
             const streetLength = street.isVertical ? generationHeight : generationWidth;
-            const numCars = Math.floor(trafficDensity * streetLength / (50 * zoom));
+            const numCars = Math.floor(trafficDensity * streetLength / 50);
             for(let j = 0; j < numCars; j++) {
-                this.vehicles.push(new Vehicle(i*100 + j, street.isVertical, street.pos, street.width, zoom));
+                this.vehicles.push(new Vehicle(i*100 + j, street.isVertical, street.pos, street.width, 1));
             }
         });
     }
@@ -450,10 +526,25 @@ export class DroneViewEffect implements VFXEffect {
                 ip: this.generateIp(this.currentTime),
                 mac: this.generateMac(this.currentTime)
             };
+
+            // Convert screen-space capture pos to fixed world-space pos
+            const sway = cameraSway as number;
+            const z = zoom as number;
+            const swayX = (sway > 0) ? Math.sin(this.currentTime * 0.3) * sway * 0.7 + Math.sin(this.currentTime * 0.7) * sway * 0.3 : 0;
+            const swayY = (sway > 0) ? Math.sin(this.currentTime * 0.4) * sway * 0.7 + Math.sin(this.currentTime * 0.8) * sway * 0.3 : 0;
+            const captureInSwaySpaceX = this.capturePosition.x + swayX;
+            const captureInSwaySpaceY = this.capturePosition.y + swayY;
+            this.worldCapturePosition = {
+                x: (captureInSwaySpaceX - this.width / 2) / z + this.width / 2,
+                y: (captureInSwaySpaceY - this.height / 2) / z + this.height / 2,
+            };
+
             this.spawnPoliceCars(4);
+
         } else if (!capture && this.wasCapturing) {
             // Just switched OFF
             this.capturePosition = null;
+            this.worldCapturePosition = null;
             this.policeCars = [];
             this.targetInfo = null;
         }
@@ -464,23 +555,9 @@ export class DroneViewEffect implements VFXEffect {
         const generationHeight = this.height + SWAY_PADDING * 2;
         this.vehicles.forEach(v => v.update(this.currentTime, { width: generationWidth, height: generationHeight }));
         
-        if (this.capturePosition) {
-            // Convert screen-space capturePosition to world-space for police car AI
-            const sway = cameraSway as number;
-            const z = zoom as number;
-            
-            const swayX = (sway > 0) ? Math.sin(this.currentTime * 0.3) * sway * 0.7 + Math.sin(this.currentTime * 0.7) * sway * 0.3 : 0;
-            const swayY = (sway > 0) ? Math.sin(this.currentTime * 0.4) * sway * 0.7 + Math.sin(this.currentTime * 0.8) * sway * 0.3 : 0;
-            
-            const targetInSwaySpaceX = this.capturePosition.x + swayX;
-            const targetInSwaySpaceY = this.capturePosition.y + swayY;
-            
-            const targetInWorldX = (targetInSwaySpaceX - this.width / 2) / z + this.width / 2;
-            const targetInWorldY = (targetInSwaySpaceY - this.height / 2) / z + this.height / 2;
-
-            const worldTarget = { x: targetInWorldX, y: targetInWorldY };
-
-            this.policeCars.forEach(p => p.update(deltaTime, worldTarget, this.streets));
+        if (this.worldCapturePosition) {
+            const streetTarget = this.findNearestStreet(this.worldCapturePosition.x, this.worldCapturePosition.y);
+            this.policeCars.forEach(p => p.update(deltaTime, streetTarget, this.streets));
         }
     }
 
@@ -495,7 +572,7 @@ export class DroneViewEffect implements VFXEffect {
             ctx.filter = `blur(${mapBlur}px)`;
         }
 
-        this.buildings.forEach(b => b.draw(ctx, this.settings.zoom as number, this.settings));
+        this.buildings.forEach(b => b.draw(ctx, 1.0, this.settings)); // Pass zoom 1.0 since we scale the whole context
         this.vehicles.forEach(v => v.draw(ctx, this.settings));
         this.policeCars.forEach(p => p.draw(ctx, this.currentTime));
 
@@ -545,7 +622,7 @@ export class DroneViewEffect implements VFXEffect {
     }
 
     drawUI(ctx: CanvasRenderingContext2D) {
-        const { hue, scanlineOpacity, showLatitudeLines, showSearchLines, capture } = this.settings;
+        const { hue, scanlineOpacity, showLatitudeLines, showSearchLines, capture, zoom, cameraSway } = this.settings;
         const color = `hsl(${hue}, 80%, 70%)`;
         
         ctx.fillStyle = `rgba(0,0,0,${scanlineOpacity})`;
@@ -596,20 +673,29 @@ export class DroneViewEffect implements VFXEffect {
             }
         }
         
-        if (showSearchLines && this.capturePosition && capture) {
-            const searchX = this.capturePosition.x;
-            const searchY = this.capturePosition.y;
+        if (showSearchLines && capture && this.worldCapturePosition) {
+            // Convert world pos back to screen pos including sway and zoom
+            const z = zoom as number;
+            const sway = cameraSway as number;
+            const worldTarget = this.worldCapturePosition!;
+            const targetInViewX = (worldTarget.x - this.width / 2) * z + this.width / 2;
+            const targetInViewY = (worldTarget.y - this.height / 2) * z + this.height / 2;
+            const swayX = (sway > 0) ? Math.sin(this.currentTime * 0.3) * sway * 0.7 + Math.sin(this.currentTime * 0.7) * sway * 0.3 : 0;
+            const swayY = (sway > 0) ? Math.sin(this.currentTime * 0.4) * sway * 0.7 + Math.sin(this.currentTime * 0.8) * sway * 0.3 : 0;
+            const finalScreenX = targetInViewX - swayX;
+            const finalScreenY = targetInViewY - swayY;
+
             ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 0.8)`;
             ctx.lineWidth = 4;
             ctx.beginPath();
-            ctx.moveTo(0, searchY);
-            ctx.lineTo(this.width, searchY);
+            ctx.moveTo(0, finalScreenY);
+            ctx.lineTo(this.width, finalScreenY);
             ctx.stroke();
             ctx.beginPath();
-            ctx.moveTo(searchX, 0);
-            ctx.lineTo(searchX, this.height);
+            ctx.moveTo(finalScreenX, 0);
+            ctx.lineTo(finalScreenX, this.height);
             ctx.stroke();
-            ctx.strokeRect(searchX - 20, searchY - 20, 40, 40);
+            ctx.strokeRect(finalScreenX - 20, finalScreenY - 20, 40, 40);
 
             const isBlinking = Math.sin(this.currentTime * 10) > 0;
             if (isBlinking) {
@@ -618,11 +704,11 @@ export class DroneViewEffect implements VFXEffect {
                 ctx.fillStyle = `hsl(${hue}, 100%, 80%)`;
                 ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
                 ctx.shadowBlur = 10;
-                ctx.fillText('LOCATED', searchX, searchY - 35);
+                ctx.fillText('LOCATED', finalScreenX, finalScreenY - 35);
                 ctx.shadowBlur = 0;
             }
 
-            this.drawCaptureInfo(ctx, searchX, searchY);
+            this.drawCaptureInfo(ctx, finalScreenX, finalScreenY);
         } else if (showSearchLines) {
             const searchSpeed = 0.5;
             const searchY = (this.currentTime * this.height * searchSpeed) % this.height;
@@ -670,31 +756,33 @@ export class DroneViewEffect implements VFXEffect {
         ctx.clearRect(0, 0, this.width, this.height);
         
         if (ca > 0) {
-            // Draw red channel
+            ctx.globalCompositeOperation = 'lighter';
+            
+            // Red channel
             ctx.save();
             ctx.drawImage(this.bufferCanvas, -ca, 0);
             ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = `rgb(255,0,0)`;
+            ctx.fillStyle = 'rgb(255,0,0)';
             ctx.fillRect(0,0,this.width, this.height);
             ctx.restore();
 
-            // Draw green channel and blend
+            // Green channel
             ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
             ctx.drawImage(this.bufferCanvas, 0, 0);
             ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = `rgb(0,255,0)`;
+            ctx.fillStyle = 'rgb(0,255,0)';
             ctx.fillRect(0,0,this.width, this.height);
             ctx.restore();
 
-            // Draw blue channel and blend
+            // Blue channel
             ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
             ctx.drawImage(this.bufferCanvas, ca, 0);
             ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = `rgb(0,0,255)`;
+            ctx.fillStyle = 'rgb(0,0,255)';
             ctx.fillRect(0,0,this.width, this.height);
             ctx.restore();
+
+            ctx.globalCompositeOperation = 'source-over';
         } else {
             ctx.drawImage(this.bufferCanvas, 0, 0);
         }
