@@ -14,7 +14,6 @@ export class EffectWindowEffect implements VFXEffect {
     };
 
     private canvas: HTMLCanvasElement | null = null;
-    private mainCtx: CanvasRenderingContext2D | null = null;
     private width = 0;
     private height = 0;
 
@@ -55,8 +54,21 @@ export class EffectWindowEffect implements VFXEffect {
             const h = (this.settings.windowHeight / 100) * this.height;
 
             if(w > 0 && h > 0) {
-                this.innerCanvas.width = w;
-                this.innerCanvas.height = h;
+                const dpr = window.devicePixelRatio || 1;
+                this.innerCanvas.width = w * dpr;
+                this.innerCanvas.height = h * dpr;
+
+                // Mock getBoundingClientRect for the offscreen canvas so inner effects can initialize correctly.
+                this.innerCanvas.getBoundingClientRect = () => ({
+                    width: w,
+                    height: h,
+                    top: 0, left: 0, right: w, bottom: h, x: 0, y: 0,
+                    toJSON: () => JSON.stringify(this),
+                });
+                
+                this.innerCtx.resetTransform();
+                this.innerCtx.scale(dpr, dpr);
+
                 this.innerEffectInstance.init(this.innerCanvas, EffectClass.defaultSettings);
             } else {
                 this.innerEffectInstance = null;
@@ -75,28 +87,23 @@ export class EffectWindowEffect implements VFXEffect {
         }
 
         if (newSettings.innerEffect !== this.innerEffectKey) {
-            this.setupInnerEffect(newSettings.innerEffect);
+            this.setupInnerEffect(newSettings.innerEffect as string);
         }
     
         const sizeChanged = this.settings.windowWidth !== newSettings.windowWidth || 
-                            this.settings.windowHeight !== newSettings.windowHeight;
+                            this.settings.windowHeight !== newSettings.windowHeight ||
+                            this.settings.borderWidth !== newSettings.borderWidth;
     
         this.settings = { ...EffectWindowEffect.defaultSettings, ...newSettings };
     
-        if (sizeChanged && this.innerEffectInstance) {
-            const w = (this.settings.windowWidth / 100) * this.width;
-            const h = (this.settings.windowHeight / 100) * this.height;
-            if(w > 0 && h > 0 && (this.innerCanvas.width !== w || this.innerCanvas.height !== h)) {
-                this.innerCanvas.width = w;
-                this.innerCanvas.height = h;
-                this.innerEffectInstance.init(this.innerCanvas, this.availableEffects[this.innerEffectKey].defaultSettings);
-            }
+        // Re-initialize if the window size changes
+        if (sizeChanged && this.innerEffectKey) {
+            this.setupInnerEffect(this.innerEffectKey);
         }
     }
 
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
         this.canvas = canvas;
-        this.mainCtx = canvas.getContext('2d');
         const rect = canvas.getBoundingClientRect();
         this.width = rect.width;
         this.height = rect.height;
@@ -113,6 +120,16 @@ export class EffectWindowEffect implements VFXEffect {
 
     update(time: number, deltaTime: number, settings: VFXSettings) {
         if (!this.canvas) return;
+        const rect = this.canvas.getBoundingClientRect();
+        
+        // Handle main canvas resize
+        if (this.width !== rect.width || this.height !== rect.height) {
+            this.width = rect.width;
+            this.height = rect.height;
+             if (this.innerEffectKey) {
+                this.setupInnerEffect(this.innerEffectKey);
+            }
+        }
 
         this.updateSettings(settings);
 
@@ -202,7 +219,8 @@ export class EffectWindowEffect implements VFXEffect {
         this.drawCyberBorder(ctx, x, y, w, h, time);
 
         if (this.innerEffectInstance && this.innerCanvas.width > 0 && this.innerCanvas.height > 0) {
-            this.innerCtx.clearRect(0, 0, this.innerCanvas.width, this.innerCanvas.height);
+            // Use logical width/height for clearing the scaled context
+            this.innerCtx.clearRect(0, 0, w, h);
             this.innerEffectInstance.render(this.innerCtx);
             ctx.drawImage(this.innerCanvas, x, y, w, h);
         } else {
