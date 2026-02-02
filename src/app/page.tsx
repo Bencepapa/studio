@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -48,11 +49,13 @@ import { GameUiBackground } from "@/components/game-ui-background";
 import { WelcomeEffect } from "@/effects/welcome";
 import { EffectWindowEffect } from "@/effects/effect-window";
 import { CompositorEffect } from "@/effects/compositor";
+import { ZombieNetworkEffect } from "@/effects/zombie-network";
 import { PlayerControls } from "@/components/player-controls";
 
 const availableEffects: Record<string, VFXEffectClass> = {
   "compositor": CompositorEffect,
   "welcome": WelcomeEffect,
+  "zombie-network": ZombieNetworkEffect,
   "effect-window": EffectWindowEffect,
   "drone-view": DroneViewEffect,
   "cpu-trace": CPUTraceEffect,

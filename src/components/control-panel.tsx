@@ -330,7 +330,7 @@ export function ControlPanel({
        }
       
       const isSpeed = key.toLowerCase().includes('speed');
-      const isCount = key.toLowerCase().includes('count');
+      const isCount = key.toLowerCase().includes('count') || key.toLowerCase().includes('computers');
       const isRibbonWidth = key === 'ribbonWidth';
       const isSpeechTarget = key.startsWith('target');
       const isCornerRadius = key === 'cornerRadius';

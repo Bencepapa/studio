@@ -33,6 +33,7 @@ const effectFileMap: { [key: string]: string } = {
   "cpu-trace": "cpu-trace.ts",
   "system-overload": "system-overload.ts",
   "cyberdeck-startup": "cyberdeck-startup.ts",
+  "zombie-network": "zombie-network.ts",
 };
 
 const UTILS_INSTRUCTIONS = `This effect relies on helper functions from a utility script.
