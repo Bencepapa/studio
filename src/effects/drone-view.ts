@@ -50,18 +50,6 @@ class Building {
         // Draw main face
         ctx.fillStyle = rooftopColor;
         ctx.fillRect(this.x, this.y, this.width, this.height);
-        
-        // Draw rooftop details
-        if (this.rooftopPattern === 1) { // Horizontal lines
-            ctx.strokeStyle = `hsl(${settings.mapHue}, 20%, ${(settings.mapLightness as number) + 15}%)`;
-            ctx.lineWidth = 1 * zoom;
-            for (let i = 5; i < this.height; i += 10) {
-                ctx.beginPath();
-                ctx.moveTo(this.x, this.y + i);
-                ctx.lineTo(this.x + this.width, this.y + i);
-                ctx.stroke();
-            }
-        }
     }
 }
 
@@ -659,12 +647,11 @@ export class DroneViewEffect implements VFXEffect {
     render(ctx: CanvasRenderingContext2D) {
         if (!this.width || !this.height) return;
 
+        // 1. Draw the entire scene (map + UI) to the off-screen buffer.
         this.bufferCtx.clearRect(0, 0, this.width, this.height);
         this.bufferCtx.save();
         
         const zoom = this.settings.zoom as number;
-
-        // Apply centered zoom
         this.bufferCtx.translate(this.width / 2, this.height / 2);
         this.bufferCtx.scale(zoom, zoom);
         this.bufferCtx.translate(-this.width / 2, -this.height / 2);
@@ -678,36 +665,44 @@ export class DroneViewEffect implements VFXEffect {
 
         this.drawScene(this.bufferCtx);
         this.bufferCtx.restore();
-
         this.drawUI(this.bufferCtx);
 
+        // 2. Draw the buffer to the main canvas with effects.
         const ca = this.settings.chromaticAberration as number;
+        
+        // The main canvas (`ctx`) is already cleared by the EffectPlayer.
+        
         if (ca > 0) {
-            ctx.clearRect(0, 0, this.width, this.height);
-            // Use 'lighter' to blend channels additively
-            ctx.globalCompositeOperation = 'lighter';
-            
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter'; // Use additive blending
+
             // Red channel
             ctx.save();
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = 'red';
-            ctx.fillRect(0, 0, this.width, this.height);
-            ctx.globalCompositeOperation = 'destination-in';
             ctx.drawImage(this.bufferCanvas, -ca, 0);
-            ctx.restore();
-
-            // Cyan channel
-            ctx.save();
             ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = 'cyan';
+            ctx.fillStyle = 'rgb(255,0,0)';
             ctx.fillRect(0, 0, this.width, this.height);
-            ctx.globalCompositeOperation = 'destination-in';
-            ctx.drawImage(this.bufferCanvas, ca, 0);
             ctx.restore();
             
-            ctx.globalCompositeOperation = 'source-over';
+            // Green channel (no shift)
+            ctx.save();
+            ctx.drawImage(this.bufferCanvas, 0, 0);
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.fillStyle = 'rgb(0,255,0)';
+            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.restore();
+
+            // Blue channel
+            ctx.save();
+            ctx.drawImage(this.bufferCanvas, ca, 0);
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.fillStyle = 'rgb(0,0,255)';
+            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.restore();
+
+            ctx.restore();
         } else {
-            ctx.clearRect(0, 0, this.width, this.height);
+            // No effect, just draw the buffer directly to the main canvas.
             ctx.drawImage(this.bufferCanvas, 0, 0);
         }
     }
