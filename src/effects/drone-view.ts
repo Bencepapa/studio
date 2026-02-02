@@ -126,6 +126,113 @@ class Vehicle {
     }
 }
 
+class PoliceCar {
+    x: number;
+    y: number;
+    speed: number = 150; // Faster than normal traffic
+    size: { w: number; h: number };
+    currentStreet: { pos: number; width: number; isVertical: boolean };
+    isStopped: boolean = false;
+    timeOffset: number;
+
+    constructor(
+      seed: number,
+      startStreet: { pos: number; width: number; isVertical: boolean },
+      zoom: number,
+      canvasWidth: number,
+      canvasHeight: number
+    ) {
+        this.currentStreet = startStreet;
+        this.timeOffset = seed * 10;
+
+        if (this.currentStreet.isVertical) {
+            this.size = { w: 4 * zoom, h: 8 * zoom };
+            this.x = this.currentStreet.pos + (this.currentStreet.width - this.size.w) / 2;
+            this.y = seededRandom(seed) > 0.5 ? -this.size.h - SWAY_PADDING : canvasHeight + SWAY_PADDING;
+        } else {
+            this.size = { w: 8 * zoom, h: 4 * zoom };
+            this.x = seededRandom(seed) > 0.5 ? -this.size.w - SWAY_PADDING : canvasWidth + SWAY_PADDING;
+            this.y = this.currentStreet.pos + (this.currentStreet.width - this.size.h) / 2;
+        }
+    }
+
+    update(deltaTime: number, target: { x: number; y: number }, streets: { pos: number; width: number; isVertical: boolean }[]) {
+        if (this.isStopped) return;
+
+        const stopDistance = 15;
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        if (Math.sqrt(dx * dx + dy * dy) < stopDistance) {
+            this.isStopped = true;
+            return;
+        }
+        
+        let moveAmount = this.speed * deltaTime;
+
+        if (this.currentStreet.isVertical) {
+            // Move vertically
+            if (Math.abs(dy) > moveAmount) {
+                this.y += Math.sign(dy) * moveAmount;
+            } else {
+                // Reached target Y alignment, find best horizontal street
+                let bestStreet = null;
+                let minDistance = Infinity;
+                for(const street of streets) {
+                    if (!street.isVertical) {
+                        const dist = Math.abs(street.pos - this.y);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            bestStreet = street;
+                        }
+                    }
+                }
+                if (bestStreet) this.currentStreet = bestStreet;
+            }
+        } else { // On horizontal street
+            // Move horizontally
+            if (Math.abs(dx) > moveAmount) {
+                this.x += Math.sign(dx) * moveAmount;
+            } else {
+                 // Reached target X alignment, find best vertical street
+                let bestStreet = null;
+                let minDistance = Infinity;
+                for(const street of streets) {
+                    if (street.isVertical) {
+                        const dist = Math.abs(street.pos - this.x);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            bestStreet = street;
+                        }
+                    }
+                }
+                if (bestStreet) this.currentStreet = bestStreet;
+            }
+        }
+    }
+    
+    draw(ctx: CanvasRenderingContext2D, time: number) {
+        ctx.fillStyle = '#111';
+        ctx.fillRect(this.x, this.y, this.size.w, this.size.h);
+
+        // Flashing lights
+        const isFlashing = Math.sin((time + this.timeOffset) * 20) > 0;
+        const light1 = isFlashing ? 'red' : 'blue';
+        const light2 = isFlashing ? 'blue' : 'red';
+        
+        if (this.size.w > this.size.h) { // Horizontal
+            ctx.fillStyle = light1;
+            ctx.fillRect(this.x + 1, this.y + 1, 2, 2);
+            ctx.fillStyle = light2;
+            ctx.fillRect(this.x + this.size.w - 3, this.y + 1, 2, 2);
+        } else { // Vertical
+             ctx.fillStyle = light1;
+            ctx.fillRect(this.x + 1, this.y + 1, 2, 2);
+            ctx.fillStyle = light2;
+            ctx.fillRect(this.x + 1, this.y + this.size.h - 3, 2, 2);
+        }
+    }
+}
+
 
 export class DroneViewEffect implements VFXEffect {
     private settings: VFXSettings = DroneViewEffect.defaultSettings;
@@ -141,7 +248,12 @@ export class DroneViewEffect implements VFXEffect {
 
     private buildings: Building[] = [];
     private vehicles: Vehicle[] = [];
+    private policeCars: PoliceCar[] = [];
     private streets: { pos: number, width: number, isVertical: boolean }[] = [];
+
+    private capturePosition: { x: number, y: number } | null = null;
+    private wasCapturing: boolean = false;
+    private targetInfo: { ip: string, mac: string } | null = null;
 
     static effectName = "Drone View";
     static defaultSettings: VFXSettings = {
@@ -158,6 +270,10 @@ export class DroneViewEffect implements VFXEffect {
         headlightLightness: 80,
         mapBlur: 0,
         cameraSway: 0,
+        capture: false,
+        deckName: 'KENSHIN',
+        nickname: 'ZERO_COOL',
+        rank: 'S-CLASS',
     };
 
     constructor() {
@@ -182,6 +298,7 @@ export class DroneViewEffect implements VFXEffect {
         
         this.buildings = [];
         this.vehicles = [];
+        this.policeCars = [];
         this.streets = [];
         const zoom = this.settings.zoom as number;
         const buildingDensity = (this.settings.buildingDensity as number) / 100;
@@ -192,42 +309,38 @@ export class DroneViewEffect implements VFXEffect {
         const generationWidth = this.width + SWAY_PADDING * 2;
         const generationHeight = this.height + SWAY_PADDING * 2;
 
-        // Generate vertical streets first and store their positions
         const verticalStreets: { pos: number, width: number }[] = [];
         let currentX = -SWAY_PADDING + (seededRandom(seed++) * 100 + 50) * zoom * buildingDensity;
         while (currentX < generationWidth - SWAY_PADDING) {
             const street = { pos: currentX, width: streetWidth, isVertical: true };
             this.streets.push(street);
             verticalStreets.push(street);
-            currentX += streetWidth; // The street itself
-            currentX += (seededRandom(seed++) * 200 + 100) * zoom * buildingDensity; // The building block
+            currentX += streetWidth;
+            currentX += (seededRandom(seed++) * 200 + 100) * zoom * buildingDensity;
         }
         
-        // Generate horizontal streets and the buildings between vertical streets
         let currentY = -SWAY_PADDING;
-        seed = 1000; // Reset seed for determinism in the other axis
+        seed = 1000;
         while (currentY < generationHeight - SWAY_PADDING) {
             this.streets.push({ pos: currentY, width: streetWidth, isVertical: false });
             currentY += streetWidth;
             
             const remainingHeight = generationHeight - SWAY_PADDING - currentY;
-            if (remainingHeight < 20 * zoom) break; // Not enough space for a meaningful block
+            if (remainingHeight < 20 * zoom) break;
             
             const blockHeight = (seededRandom(seed++) * 200 + 50) * zoom * buildingDensity;
             const finalBlockHeight = Math.min(blockHeight, remainingHeight);
             if(finalBlockHeight <= 0) break;
 
-            // Iterate through the spaces between vertical streets to place buildings
             let lastVStreetEdge = -SWAY_PADDING;
             verticalStreets.forEach(vStreet => {
                 const blockX = lastVStreetEdge;
                 const blockWidth = vStreet.pos - lastVStreetEdge;
-                if (blockWidth > streetWidth) { // Only add buildings if there's enough space
+                if (blockWidth > streetWidth) {
                     this.buildings.push(new Building(blockX, currentY, blockWidth, finalBlockHeight, seed++));
                 }
                 lastVStreetEdge = vStreet.pos + vStreet.width;
             });
-            // Add buildings in the last block after the final vertical street
             if (lastVStreetEdge < generationWidth - SWAY_PADDING) {
                 const blockX = lastVStreetEdge;
                 const blockWidth = (generationWidth - SWAY_PADDING) - lastVStreetEdge;
@@ -239,8 +352,6 @@ export class DroneViewEffect implements VFXEffect {
             currentY += finalBlockHeight;
         }
 
-
-        // Vehicles
         const trafficDensity = (this.settings.trafficDensity as number) / 100;
         this.streets.forEach((street, i) => {
             const streetLength = street.isVertical ? generationHeight : generationWidth;
@@ -252,6 +363,29 @@ export class DroneViewEffect implements VFXEffect {
     }
 
     destroy() {}
+
+    spawnPoliceCars(count: number) {
+        this.policeCars = [];
+        for (let i = 0; i < count; i++) {
+            const startStreet = this.streets[Math.floor(seededRandom(this.currentTime + i) * this.streets.length)];
+            const policeCar = new PoliceCar(i, startStreet, this.settings.zoom as number, this.width, this.height);
+            this.policeCars.push(policeCar);
+        }
+    }
+
+    generateIp(seed: number): string {
+        return `${Math.floor(seededRandom(seed)*255)}.${Math.floor(seededRandom(seed+1)*255)}.${Math.floor(seededRandom(seed+2)*255)}.${Math.floor(seededRandom(seed+3)*255)}`;
+    }
+
+    generateMac(seed: number): string {
+        let mac = '';
+        for (let i=0; i<6; i++) {
+            mac += Math.floor(seededRandom(seed+i)*255).toString(16).padStart(2,'0').toUpperCase();
+            if (i<5) mac += ':';
+        }
+        return mac;
+    }
+
 
     update(time: number, deltaTime: number, settings: VFXSettings) {
         this.currentTime = time;
@@ -270,56 +404,120 @@ export class DroneViewEffect implements VFXEffect {
             return;
         }
         
+        const { capture } = this.settings;
+
+        if (capture && !this.wasCapturing) {
+            // Just switched ON
+            this.capturePosition = { 
+                x: seededRandom(this.currentTime) * (this.width - 200) + 100, 
+                y: seededRandom(this.currentTime + 1) * (this.height - 200) + 100
+            };
+            this.targetInfo = {
+                ip: this.generateIp(this.currentTime),
+                mac: this.generateMac(this.currentTime)
+            };
+            this.spawnPoliceCars(4);
+        } else if (!capture && this.wasCapturing) {
+            // Just switched OFF
+            this.capturePosition = null;
+            this.policeCars = [];
+            this.targetInfo = null;
+        }
+
+        this.wasCapturing = capture as boolean;
+
         const generationWidth = this.width + SWAY_PADDING * 2;
         const generationHeight = this.height + SWAY_PADDING * 2;
         this.vehicles.forEach(v => v.update(this.currentTime, { width: generationWidth, height: generationHeight }));
+        if (this.capturePosition) {
+            this.policeCars.forEach(p => p.update(deltaTime, this.capturePosition!, this.streets));
+        }
     }
 
     drawScene(ctx: CanvasRenderingContext2D) {
         const generationWidth = this.width + SWAY_PADDING * 2;
         const generationHeight = this.height + SWAY_PADDING * 2;
-        // Background / Streets
         ctx.fillStyle = STREET_COLOR;
         ctx.fillRect(-SWAY_PADDING, -SWAY_PADDING, generationWidth, generationHeight);
         
-        // Apply blur if any
         const mapBlur = this.settings.mapBlur as number;
         if (mapBlur > 0) {
             ctx.filter = `blur(${mapBlur}px)`;
         }
 
-        // Buildings
         this.buildings.forEach(b => b.draw(ctx, this.settings.zoom as number, this.settings));
-        
-        // Vehicles
         this.vehicles.forEach(v => v.draw(ctx, this.settings));
+        this.policeCars.forEach(p => p.draw(ctx, this.currentTime));
 
-        // Reset filter
         if (mapBlur > 0) {
             ctx.filter = 'none';
         }
     }
     
+    drawCaptureInfo(ctx: CanvasRenderingContext2D, x: number, y: number) {
+        const { hue, deckName, nickname, rank } = this.settings;
+        const infoColor = `hsl(${hue}, 80%, 70%)`;
+        const labelColor = `hsla(${hue}, 40%, 80%, 0.8)`;
+        const panelColor = `hsla(${hue}, 60%, 10%, 0.7)`;
+
+        const panelWidth = 200;
+        const panelHeight = 130;
+        const panelX = x > this.width / 2 ? x - panelWidth - 30 : x + 30;
+        const panelY = y > this.height / 2 ? y - panelHeight - 30 : y + 30;
+        
+        ctx.fillStyle = panelColor;
+        ctx.strokeStyle = infoColor;
+        ctx.lineWidth = 1;
+        ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
+        ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
+
+        ctx.font = `12px "Source Code Pro"`;
+        ctx.textAlign = 'left';
+        
+        const textX = panelX + 10;
+        let textY = panelY + 20;
+        
+        const drawLine = (label: string, value: string) => {
+            ctx.fillStyle = labelColor;
+            ctx.fillText(label, textX, textY);
+            ctx.fillStyle = infoColor;
+            ctx.fillText(value, textX + 45, textY);
+            textY += 15;
+        }
+
+        if (this.targetInfo) {
+            drawLine('IP:', this.targetInfo.ip);
+            drawLine('MAC:', this.targetInfo.mac);
+        }
+        drawLine('DECK:', deckName as string);
+        drawLine('USER:', nickname as string);
+        drawLine('RANK:', rank as string);
+    }
+
     drawUI(ctx: CanvasRenderingContext2D) {
-        const { hue, scanlineOpacity, showLatitudeLines, showSearchLines } = this.settings;
+        const { hue, scanlineOpacity, showLatitudeLines, showSearchLines, capture } = this.settings;
         const color = `hsl(${hue}, 80%, 70%)`;
         
-        // Scanlines
         ctx.fillStyle = `rgba(0,0,0,${scanlineOpacity})`;
         for (let y = 0; y < this.height; y += 3) {
             ctx.fillRect(0, y, this.width, 1);
         }
 
-        // GPS coordinates
         ctx.font = `bold 16px "Source Code Pro"`;
         ctx.fillStyle = color;
         ctx.textAlign = 'left';
         const lat = (34.0522 + (seededRandom(Math.floor(this.currentTime*10)) - 0.5) * 0.0001).toFixed(6);
         const lon = (-118.2437 + (seededRandom(Math.floor(this.currentTime*10)+1) - 0.5) * 0.0001).toFixed(6);
-        ctx.fillText(`GPS: ${lat}, ${lon}`, 20, 30);
+        
+        if (capture && this.capturePosition) {
+            const fixedLat = (34.0522 + (this.capturePosition.y / this.height - 0.5) * 0.1).toFixed(6);
+            const fixedLon = (-118.2437 + (this.capturePosition.x / this.width - 0.5) * 0.1).toFixed(6);
+            ctx.fillText(`GPS: ${fixedLat}, ${fixedLon}`, 20, 30);
+        } else {
+             ctx.fillText(`GPS: ${lat}, ${lon}`, 20, 30);
+        }
         ctx.fillText(`ALT: ${(200 + Math.sin(this.currentTime) * 10).toFixed(2)}m`, 20, 50);
 
-        // Latitude Lines
         if (showLatitudeLines) {
             const baseLat = 34.0;
             const baseLon = -118.5;
@@ -329,12 +527,10 @@ export class DroneViewEffect implements VFXEffect {
                 const y = i * this.height / 5;
                 for(let j = 1; j < 5; j++) {
                     const x = j * this.width / 5;
-
                     ctx.beginPath();
                     ctx.moveTo(x - 10, y);
                     ctx.lineTo(x + 10, y);
                     ctx.stroke();
-
                     ctx.beginPath();
                     ctx.moveTo(x, y - 10);
                     ctx.lineTo(x, y + 10);
@@ -350,27 +546,35 @@ export class DroneViewEffect implements VFXEffect {
             }
         }
         
-        // Search Lines
-        if (showSearchLines) {
-            const searchSpeed = 0.5;
-            const searchY = (this.currentTime * this.height * searchSpeed) % this.height;
-            const targetX = seededRandom(Math.floor(this.currentTime * 2)) * this.width;
-
-            ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 0.6)`;
+        if (showSearchLines && this.capturePosition && capture) {
+            const searchX = this.capturePosition.x;
+            const searchY = this.capturePosition.y;
+            ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 0.8)`;
             ctx.lineWidth = 4;
-            
-            // Horizontal sweep
             ctx.beginPath();
             ctx.moveTo(0, searchY);
             ctx.lineTo(this.width, searchY);
             ctx.stroke();
-            
-            // Vertical target
+            ctx.beginPath();
+            ctx.moveTo(searchX, 0);
+            ctx.lineTo(searchX, this.height);
+            ctx.stroke();
+            ctx.strokeRect(searchX - 20, searchY - 20, 40, 40);
+            this.drawCaptureInfo(ctx, searchX, searchY);
+        } else if (showSearchLines) {
+            const searchSpeed = 0.5;
+            const searchY = (this.currentTime * this.height * searchSpeed) % this.height;
+            const targetX = seededRandom(Math.floor(this.currentTime * 2)) * this.width;
+            ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 0.6)`;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, searchY);
+            ctx.lineTo(this.width, searchY);
+            ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(targetX, 0);
             ctx.lineTo(targetX, this.height);
             ctx.stroke();
-
             ctx.strokeRect(targetX - 20, searchY - 20, 40, 40);
             ctx.fillText('SEARCHING...', targetX + 25, searchY - 10);
         }
@@ -379,7 +583,6 @@ export class DroneViewEffect implements VFXEffect {
     render(ctx: CanvasRenderingContext2D) {
         if (!this.width || !this.height) return;
 
-        // Draw scene with sway into buffer
         this.bufferCtx.clearRect(0, 0, this.width, this.height);
         this.bufferCtx.save();
         
@@ -393,36 +596,15 @@ export class DroneViewEffect implements VFXEffect {
         this.drawScene(this.bufferCtx);
         this.bufferCtx.restore();
 
-        // Draw UI on top of buffer without sway
         this.drawUI(this.bufferCtx);
 
-
-        // Render buffer to main canvas with post-processing
         const ca = this.settings.chromaticAberration as number;
         if (ca > 0) {
             ctx.clearRect(0, 0, this.width, this.height);
-
-            // --- Red Channel ---
-            this.channelCtx.clearRect(0, 0, this.width, this.height);
-            this.channelCtx.drawImage(this.bufferCanvas, 0, 0);
-            this.channelCtx.globalCompositeOperation = 'multiply';
-            this.channelCtx.fillStyle = 'red';
-            this.channelCtx.fillRect(0, 0, this.width, this.height);
-            this.channelCtx.globalCompositeOperation = 'source-over';
-            ctx.drawImage(this.channelCanvas, ca, 0);
-            
-            // --- Cyan Channel ---
-            this.channelCtx.clearRect(0, 0, this.width, this.height);
-            this.channelCtx.drawImage(this.bufferCanvas, 0, 0);
-            this.channelCtx.globalCompositeOperation = 'multiply';
-            this.channelCtx.fillStyle = 'cyan';
-            this.channelCtx.fillRect(0, 0, this.width, this.height);
-            this.channelCtx.globalCompositeOperation = 'source-over';
-            
             ctx.globalCompositeOperation = 'lighter';
-            ctx.drawImage(this.channelCanvas, -ca, 0);
+            ctx.drawImage(this.bufferCanvas, ca, 0);
+            ctx.drawImage(this.bufferCanvas, -ca, 0);
             ctx.globalCompositeOperation = 'source-over';
-
         } else {
             ctx.clearRect(0, 0, this.width, this.height);
             ctx.drawImage(this.bufferCanvas, 0, 0);
