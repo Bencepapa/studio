@@ -3,7 +3,7 @@ import { seededRandom, mapRange, randomRange } from './utils';
 import type { VFXEffect, VFXEffectClass, VFXSettings } from './types';
 
 const STREET_COLOR = '#080808';
-const SWAY_PADDING = 60; // Padding to generate off-screen, must be > max cameraSway
+const SWAY_PADDING = 120; // Padding to generate off-screen, must be > max cameraSway
 
 class Building {
     x: number;
@@ -133,7 +133,6 @@ class PoliceCar {
     size: { w: number; h: number };
     currentStreet: { pos: number; width: number; isVertical: boolean };
     isStopped: boolean = false;
-    timeOffset: number;
 
     constructor(
       seed: number,
@@ -143,7 +142,6 @@ class PoliceCar {
       canvasHeight: number
     ) {
         this.currentStreet = startStreet;
-        this.timeOffset = seed * 10;
 
         if (this.currentStreet.isVertical) {
             this.size = { w: 4 * zoom, h: 8 * zoom };
@@ -160,7 +158,11 @@ class PoliceCar {
         if (this.isStopped) return;
 
         const stopDistance = 10;
-        if (Math.abs(this.x - target.x) < stopDistance && Math.abs(this.y - target.y) < stopDistance) {
+        const targetXWithSway = target.x;
+        const targetYWithSway = target.y;
+
+        // Use a larger stop distance if the car is moving fast to prevent overshooting
+        if (Math.abs(this.x - targetXWithSway) < stopDistance && Math.abs(this.y - targetYWithSway) < stopDistance) {
             this.isStopped = true;
             return;
         }
@@ -168,12 +170,10 @@ class PoliceCar {
         let moveAmount = this.speed * deltaTime;
 
         if (this.currentStreet.isVertical) {
-            const dx = target.x - this.x;
-            const dy = target.y - this.y;
+            const dx = targetXWithSway - this.x;
+            const dy = targetYWithSway - this.y;
 
-            // If we are far from the target's X, we need to turn onto a horizontal street
             if (Math.abs(dx) > this.currentStreet.width) {
-                // Find nearest horizontal street
                 let nearestHStreet: { pos: number, width: number, isVertical: boolean } | null = null;
                 let minDist = Infinity;
                 for (const s of streets) {
@@ -187,25 +187,25 @@ class PoliceCar {
                 }
                 
                 if (nearestHStreet) {
-                    // Move towards the intersection
                     if (Math.abs(this.y - nearestHStreet.pos) > moveAmount) {
                         this.y += Math.sign(nearestHStreet.pos - this.y) * moveAmount;
                     } else {
-                        // Switch street
+                        // Switch street and orientation
+                        this.y = nearestHStreet.pos + (nearestHStreet.width - this.size.w) / 2; // size.w is now the new height
+                        const temp = this.size.w;
+                        this.size.w = this.size.h;
+                        this.size.h = temp;
                         this.currentStreet = nearestHStreet;
                     }
                 }
             } else {
-                // We are on the correct vertical column, move towards target Y
                 this.y += Math.sign(dy) * moveAmount;
             }
         } else { // On horizontal street
-            const dx = target.x - this.x;
-            const dy = target.y - this.y;
+            const dx = targetXWithSway - this.x;
+            const dy = targetYWithSway - this.y;
             
-            // If we are far from the target's Y, we need to turn onto a vertical street
             if (Math.abs(dy) > this.currentStreet.width) {
-                // Find nearest vertical street
                  let nearestVStreet: { pos: number, width: number, isVertical: boolean } | null = null;
                  let minDist = Infinity;
                  for (const s of streets) {
@@ -218,41 +218,72 @@ class PoliceCar {
                      }
                  }
                 if (nearestVStreet) {
-                     // Move towards the intersection
                      if (Math.abs(this.x - nearestVStreet.pos) > moveAmount) {
                          this.x += Math.sign(nearestVStreet.pos - this.x) * moveAmount;
                      } else {
-                         // Switch street
+                         // Switch street and orientation
+                         this.x = nearestVStreet.pos + (nearestVStreet.width - this.size.h) / 2; // size.h is now the new width
+                         const temp = this.size.w;
+                         this.size.w = this.size.h;
+                         this.size.h = temp;
                          this.currentStreet = nearestVStreet;
                      }
                  }
             } else {
-                // We are on the correct horizontal row, move towards target X
                 this.x += Math.sign(dx) * moveAmount;
             }
         }
     }
     
     draw(ctx: CanvasRenderingContext2D, time: number) {
+        // Car Body
         ctx.fillStyle = '#111';
         ctx.fillRect(this.x, this.y, this.size.w, this.size.h);
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(this.x, this.y, this.size.w, this.size.h);
 
         // Flashing lights
-        const isFlashing = Math.sin((time + this.timeOffset) * 20) > 0;
-        const light1 = isFlashing ? 'red' : 'blue';
-        const light2 = isFlashing ? 'blue' : 'red';
+        const isRedPhase = Math.floor(time * 10) % 2 === 0;
+        const color1 = isRedPhase ? 'hsl(0, 100%, 60%)' : 'hsl(200, 100%, 60%)';
+        const color2 = isRedPhase ? 'hsl(200, 100%, 60%)' : 'hsl(0, 100%, 60%)';
+        const glow1 = isRedPhase ? 'hsla(0, 100%, 60%, 0.7)' : 'hsla(200, 100%, 60%, 0.7)';
+        const glow2 = isRedPhase ? 'hsla(200, 100%, 60%, 0.7)' : 'hsla(0, 100%, 60%, 0.7)';
+
+        const lightBarHeight = Math.max(2, this.size.h * 0.4);
+        const lightBarWidth = Math.max(2, this.size.w * 0.4);
         
-        if (this.size.w > this.size.h) { // Horizontal
-            ctx.fillStyle = light1;
-            ctx.fillRect(this.x + 1, this.y + 1, 2, 2);
-            ctx.fillStyle = light2;
-            ctx.fillRect(this.x + this.size.w - 3, this.y + 1, 2, 2);
-        } else { // Vertical
-             ctx.fillStyle = light1;
-            ctx.fillRect(this.x + 1, this.y + 1, 2, 2);
-            ctx.fillStyle = light2;
-            ctx.fillRect(this.x + 1, this.y + this.size.h - 3, 2, 2);
+        ctx.save();
+        ctx.shadowBlur = 15;
+
+        // Horizontal Car
+        if (this.size.w > this.size.h) {
+            const yPos = this.y + (this.size.h - lightBarHeight) / 2;
+            
+            // Left light
+            ctx.shadowColor = glow1;
+            ctx.fillStyle = color1;
+            ctx.fillRect(this.x + this.size.w * 0.1, yPos, lightBarWidth, lightBarHeight);
+            
+            // Right light
+            ctx.shadowColor = glow2;
+            ctx.fillStyle = color2;
+            ctx.fillRect(this.x + this.size.w * 0.9 - lightBarWidth, yPos, lightBarWidth, lightBarHeight);
+
+        } else { // Vertical Car
+            const xPos = this.x + (this.size.w - lightBarWidth) / 2;
+            
+            // Top light
+            ctx.shadowColor = glow1;
+            ctx.fillStyle = color1;
+            ctx.fillRect(xPos, this.y + this.size.h * 0.1, lightBarWidth, lightBarHeight);
+
+            // Bottom light
+            ctx.shadowColor = glow2;
+            ctx.fillStyle = color2;
+            ctx.fillRect(xPos, this.y + this.size.h * 0.9 - lightBarHeight, lightBarWidth, lightBarHeight);
         }
+        ctx.restore();
     }
 }
 
@@ -586,6 +617,18 @@ export class DroneViewEffect implements VFXEffect {
             ctx.lineTo(searchX, this.height);
             ctx.stroke();
             ctx.strokeRect(searchX - 20, searchY - 20, 40, 40);
+
+            const isBlinking = Math.sin(this.currentTime * 10) > 0;
+            if (isBlinking) {
+                ctx.font = `bold 20px "Source Code Pro"`;
+                ctx.textAlign = 'center';
+                ctx.fillStyle = `hsl(${hue}, 100%, 80%)`;
+                ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
+                ctx.shadowBlur = 10;
+                ctx.fillText('LOCATED', searchX, searchY - 35);
+                ctx.shadowBlur = 0;
+            }
+
             this.drawCaptureInfo(ctx, searchX, searchY);
         } else if (showSearchLines) {
             const searchSpeed = 0.5;
@@ -612,6 +655,13 @@ export class DroneViewEffect implements VFXEffect {
         this.bufferCtx.clearRect(0, 0, this.width, this.height);
         this.bufferCtx.save();
         
+        const zoom = this.settings.zoom as number;
+
+        // Apply centered zoom
+        this.bufferCtx.translate(this.width / 2, this.height / 2);
+        this.bufferCtx.scale(zoom, zoom);
+        this.bufferCtx.translate(-this.width / 2, -this.height / 2);
+
         const sway = this.settings.cameraSway as number;
         if (sway > 0) {
             const swayX = Math.sin(this.currentTime * 0.3) * sway * 0.7 + Math.sin(this.currentTime * 0.7) * sway * 0.3;
@@ -630,22 +680,16 @@ export class DroneViewEffect implements VFXEffect {
             // Use 'lighter' to blend channels additively
             ctx.globalCompositeOperation = 'lighter';
             
-            // Red channel (offset left)
-            this.channelCtx.clearRect(0, 0, this.width, this.height);
-            this.channelCtx.drawImage(this.bufferCanvas, 0, 0);
-            this.channelCtx.globalCompositeOperation = 'multiply';
-            this.channelCtx.fillStyle = 'rgb(255,0,0)';
-            this.channelCtx.fillRect(0, 0, this.width, this.height);
-            ctx.drawImage(this.channelCanvas, -ca, 0);
+            // Draw main image slightly dimmed
+            ctx.globalAlpha = 0.8;
+            ctx.drawImage(this.bufferCanvas, 0, 0);
+            ctx.globalAlpha = 1.0;
             
-            // Green/Blue (Cyan) channel (offset right)
-            this.channelCtx.clearRect(0, 0, this.width, this.height);
-            this.channelCtx.drawImage(this.bufferCanvas, 0, 0);
-            this.channelCtx.globalCompositeOperation = 'multiply';
-            this.channelCtx.fillStyle = 'rgb(0,255,255)';
-            this.channelCtx.fillRect(0, 0, this.width, this.height);
-            ctx.drawImage(this.channelCanvas, ca, 0);
-
+            // Draw red channel offset
+            ctx.drawImage(this.bufferCanvas, -ca, 0);
+            // Draw cyan channel offset
+            ctx.drawImage(this.bufferCanvas, ca, 0);
+            
             ctx.globalCompositeOperation = 'source-over';
         } else {
             ctx.clearRect(0, 0, this.width, this.height);
