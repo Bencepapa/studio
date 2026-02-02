@@ -49,6 +49,7 @@ import { GameUiBackground } from "@/components/game-ui-background";
 import { WelcomeEffect } from "@/effects/welcome";
 import { EffectWindowEffect } from "@/effects/effect-window";
 import { CompositorEffect } from "@/effects/compositor";
+import { PlayerControls } from "@/components/player-controls";
 
 const availableEffects: Record<string, VFXEffectClass> = {
   "compositor": CompositorEffect,
@@ -100,6 +101,9 @@ export default function Home() {
   const [duration] = React.useState<number>(30); // 30-second loop
   const [settings, setSettings] = React.useState<VFXSettings>({});
   const [background, setBackground] = React.useState<string>("default");
+  const [loop, setLoop] = React.useState<boolean>(true);
+  const [controlsVisible, setControlsVisible] = React.useState(true);
+  const controlsTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const CurrentEffect = availableEffects[effectKey];
 
@@ -132,7 +136,6 @@ export default function Home() {
     handleEffectChange(effectKeys[nextIndex]);
   };
 
-
   const currentSettings = React.useMemo(() => {
       const baseSettings = {
         ...CurrentEffect.defaultSettings,
@@ -148,6 +151,38 @@ export default function Home() {
 
   const cyberMatrixBg = PlaceHolderImages.find(img => img.id === 'cyber-matrix-background');
 
+  const showControls = () => {
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+      controlsTimeoutRef.current = null;
+    }
+    setControlsVisible(true);
+  };
+
+  const hideControls = () => {
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    controlsTimeoutRef.current = setTimeout(() => {
+      setControlsVisible(false);
+    }, 3000); // Hide after 3 seconds of inactivity
+  };
+  
+  const handlePlayerInteraction = () => {
+    showControls();
+    hideControls();
+  }
+
+  React.useEffect(() => {
+    // Initially show controls and then hide them
+    hideControls();
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon" variant="sidebar">
@@ -155,13 +190,6 @@ export default function Home() {
           availableEffects={availableEffects}
           effectKey={effectKey}
           onEffectChange={handleEffectChange}
-          isPlaying={isPlaying}
-          onIsPlayingChange={setIsPlaying}
-          speed={speed}
-          onSpeedChange={setSpeed}
-          time={time}
-          onTimeChange={setTime}
-          duration={duration}
           settings={currentSettings}
           onSettingsChange={handleSettingsChange}
           background={background}
@@ -189,7 +217,12 @@ export default function Home() {
             <SidebarTrigger />
           </div>
         </header>
-        <main className={cn("flex-1 relative bg-background overflow-hidden", backgroundClasses[background])}>
+        <main 
+          className={cn("flex-1 relative bg-background overflow-hidden", backgroundClasses[background])}
+          onMouseMove={handlePlayerInteraction}
+          onMouseLeave={() => { if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current); setControlsVisible(false); }}
+          onTouchStart={handlePlayerInteraction}
+        >
           {background === 'game-ui' && <GameUiBackground />}
           {background === 'cyber-matrix' && cyberMatrixBg && (
             <Image
@@ -204,12 +237,30 @@ export default function Home() {
             key={effectKey}
             effect={CurrentEffect}
             isPlaying={isPlaying}
+            onIsPlayingChange={setIsPlaying}
             speed={speed}
             time={time}
             onTimeUpdate={setTime}
             duration={duration}
             settings={currentSettings}
+            loop={loop}
           />
+          <div className={cn(
+              "transition-opacity duration-300",
+              controlsVisible ? "opacity-100" : "opacity-0"
+          )}>
+            <PlayerControls
+              isPlaying={isPlaying}
+              onIsPlayingChange={setIsPlaying}
+              speed={speed}
+              onSpeedChange={setSpeed}
+              time={time}
+              onTimeChange={setTime}
+              duration={duration}
+              loop={loop}
+              onLoopChange={setLoop}
+            />
+          </div>
         </main>
       </SidebarInset>
     </SidebarProvider>

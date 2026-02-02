@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -6,21 +7,25 @@ import { type VFXEffect, type VFXEffectClass, type VFXSettings } from "@/effects
 interface EffectPlayerProps {
   effect: VFXEffectClass;
   isPlaying: boolean;
+  onIsPlayingChange: (playing: boolean) => void;
   speed: number;
   time: number;
   onTimeUpdate: (time: number) => void;
   duration: number;
   settings: VFXSettings;
+  loop: boolean;
 }
 
 export function EffectPlayer({
   effect: Effect,
   isPlaying,
+  onIsPlayingChange,
   speed,
   time,
   onTimeUpdate,
   duration,
   settings,
+  loop,
 }: EffectPlayerProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const effectInstanceRef = React.useRef<VFXEffect | null>(null);
@@ -95,13 +100,23 @@ export function EffectPlayer({
       lastTimeRef.current = timestamp;
 
       let newTime = internalTimeRef.current + deltaTime * speed;
-      if (newTime > duration) {
-        newTime %= duration;
-      } else if (newTime < 0) {
-        newTime = duration + (newTime % duration);
-        if (newTime === duration) newTime = 0;
+
+      if (loop) {
+        if (newTime > duration) {
+          newTime %= duration;
+        } else if (newTime < 0) {
+          newTime = duration + (newTime % duration);
+          if (newTime === duration) newTime = 0;
+        }
+      } else {
+        if (newTime >= duration) {
+          newTime = duration;
+          onIsPlayingChange(false);
+        } else if (newTime < 0) {
+          newTime = 0;
+        }
       }
-      
+
       onTimeUpdate(newTime);
       animationFrameIdRef.current = requestAnimationFrame(animate);
     };
@@ -114,7 +129,7 @@ export function EffectPlayer({
         cancelAnimationFrame(animationFrameIdRef.current);
       }
     };
-  }, [isPlaying, speed, duration, onTimeUpdate]);
+  }, [isPlaying, speed, duration, onTimeUpdate, loop, onIsPlayingChange]);
   
   // Render frames based on `time` prop. This handles both playing and paused states.
   React.useEffect(() => {

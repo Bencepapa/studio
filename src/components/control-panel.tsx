@@ -4,9 +4,6 @@
 import * as React from "react";
 import {
   GitBranch,
-  Play,
-  Pause,
-  Rewind,
   Settings2,
   FileText,
   Loader2,
@@ -51,13 +48,6 @@ interface ControlPanelProps {
   availableEffects: Record<string, VFXEffectClass>;
   effectKey: string;
   onEffectChange: (key: string) => void;
-  isPlaying: boolean;
-  onIsPlayingChange: (playing: boolean) => void;
-  speed: number;
-  onSpeedChange: (speed: number) => void;
-  time: number;
-  onTimeChange: (time: number) => void;
-  duration: number;
   settings: VFXSettings;
   onSettingsChange: (settings: Partial<VFXSettings>) => void;
   background: string;
@@ -68,13 +58,6 @@ export function ControlPanel({
   availableEffects,
   effectKey,
   onEffectChange,
-  isPlaying,
-  onIsPlayingChange,
-  speed,
-  onSpeedChange,
-  time,
-  onTimeChange,
-  duration,
   settings,
   onSettingsChange,
   background,
@@ -447,62 +430,6 @@ export function ControlPanel({
               <SelectItem value="cyber-matrix">Cyber Matrix</SelectItem>
             </SelectContent>
           </Select>
-        </SidebarGroup>
-        
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>
-            <Settings2 />
-            <span>Controls</span>
-          </SidebarGroupLabel>
-          <div className="space-y-4 p-2">
-            <div className="space-y-2">
-              <Label htmlFor="timeline" className="text-xs">
-                Timeline
-              </Label>
-              <Slider
-                id="timeline"
-                min={0}
-                max={duration}
-                step={0.1}
-                value={[time]}
-                onValueChange={([v]) => onTimeChange(v)}
-              />
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onTimeChange(0)}
-                aria-label="Rewind to start"
-              >
-                <Rewind />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="w-12 h-12 rounded-full border-accent text-accent"
-                onClick={() => onIsPlayingChange(!isPlaying)}
-                aria-label={isPlaying ? "Pause" : "Play"}
-              >
-                {isPlaying ? <Pause /> : <Play />}
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="speed" className="text-xs">
-                Speed: {speed.toFixed(2)}x
-              </Label>
-              <Slider
-                id="speed"
-                min={-2}
-                max={4}
-                step={0.1}
-                value={[speed]}
-                onValueChange={([v]) => onSpeedChange(v)}
-              />
-            </div>
-          </div>
         </SidebarGroup>
         
         <SidebarSeparator />
