@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 
 const effectFileMap: { [key: string]: string } = {
+  compositor: "compositor.ts",
   "drone-view": "drone-view.ts",
   "circuit-logo": "circuit-logo.ts",
   "welcome": "welcome.ts",

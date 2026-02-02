@@ -48,8 +48,10 @@ import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { GameUiBackground } from "@/components/game-ui-background";
 import { WelcomeEffect } from "@/effects/welcome";
 import { EffectWindowEffect } from "@/effects/effect-window";
+import { CompositorEffect } from "@/effects/compositor";
 
 const availableEffects: Record<string, VFXEffectClass> = {
+  "compositor": CompositorEffect,
   "welcome": WelcomeEffect,
   "effect-window": EffectWindowEffect,
   "drone-view": DroneViewEffect,
@@ -91,7 +93,7 @@ const backgroundClasses: Record<string, string> = {
 };
 
 export default function Home() {
-  const [effectKey, setEffectKey] = React.useState<string>("welcome");
+  const [effectKey, setEffectKey] = React.useState<string>("compositor");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);
@@ -136,9 +138,9 @@ export default function Home() {
         ...CurrentEffect.defaultSettings,
         ...(settings[effectKey] || {}),
       };
-      // For the EffectWindow, we need to inject the map of available effects
+      // For the EffectWindow and Compositor, we need to inject the map of available effects
       // so it can instantiate the inner effect.
-      if (effectKey === 'effect-window') {
+      if (effectKey === 'effect-window' || effectKey === 'compositor') {
           baseSettings.availableEffects = availableEffects;
       }
       return baseSettings;

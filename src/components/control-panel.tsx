@@ -45,6 +45,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Switch } from "./ui/switch";
 import { Textarea } from "./ui/textarea";
+import { cn } from "@/lib/utils";
 
 interface ControlPanelProps {
   availableEffects: Record<string, VFXEffectClass>;
@@ -128,7 +129,7 @@ export function ControlPanel({
             </SelectTrigger>
             <SelectContent>
               {Object.entries(availableEffects)
-                .filter(([key]) => key !== 'effect-window') // Prevent recursion
+                .filter(([key]) => key !== 'effect-window' && key !== 'compositor') // Prevent recursion
                 .map(([key, effect]) => (
                   <SelectItem key={key} value={key}>
                     {effect.effectName}
@@ -203,7 +204,7 @@ export function ControlPanel({
       )
     }
 
-    if (key === 'body' || (effectKey === 'speech-bubble' && key === 'text')) {
+    if (key === 'body' || (effectKey === 'speech-bubble' && key === 'text') || key === 'script') {
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="capitalize text-xs">
@@ -213,8 +214,11 @@ export function ControlPanel({
             id={key}
             value={value}
             onChange={(e) => onSettingsChange({ [key]: e.target.value })}
-            className="h-32 font-code text-xs"
-            placeholder="Enter message..."
+            className={cn(
+                "font-code text-xs",
+                key === 'script' ? 'h-96' : 'h-32'
+            )}
+            placeholder={key === 'script' ? "Enter JSON script..." : "Enter message..."}
           />
         </div>
       );
