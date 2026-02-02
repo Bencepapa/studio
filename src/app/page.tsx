@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -96,6 +95,7 @@ const backgroundClasses: Record<string, string> = {
 export default function Home() {
   const [effectKey, setEffectKey] = React.useState<string>("compositor");
   const [isPlaying, setIsPlaying] = React.useState<boolean>(true);
+  const [isScrubbing, setIsScrubbing] = React.useState<boolean>(false);
   const [speed, setSpeed] = React.useState<number>(1);
   const [time, setTime] = React.useState<number>(0);
   const [duration] = React.useState<number>(30); // 30-second loop
@@ -236,7 +236,7 @@ export default function Home() {
           <EffectPlayer
             key={effectKey}
             effect={CurrentEffect}
-            isPlaying={isPlaying}
+            isPlaying={isPlaying && !isScrubbing}
             onIsPlayingChange={setIsPlaying}
             speed={speed}
             time={time}
@@ -259,6 +259,7 @@ export default function Home() {
               duration={duration}
               loop={loop}
               onLoopChange={setLoop}
+              onIsScrubbingChange={setIsScrubbing}
             />
           </div>
         </main>

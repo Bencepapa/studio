@@ -29,6 +29,7 @@ interface PlayerControlsProps {
   duration: number;
   loop: boolean;
   onLoopChange: (loop: boolean) => void;
+  onIsScrubbingChange: (isScrubbing: boolean) => void;
 }
 
 const formatTime = (seconds: number) => {
@@ -47,6 +48,7 @@ export function PlayerControls({
   duration,
   loop,
   onLoopChange,
+  onIsScrubbingChange,
 }: PlayerControlsProps) {
   const [originalSpeed, setOriginalSpeed] = React.useState(speed);
 
@@ -71,6 +73,8 @@ export function PlayerControls({
             step={0.1}
             value={[time]}
             onValueChange={([v]) => onTimeChange(v)}
+            onPointerDown={() => onIsScrubbingChange(true)}
+            onPointerUp={() => onIsScrubbingChange(false)}
           />
           <span className="text-xs font-mono tabular-nums">{formatTime(duration)}</span>
         </div>
