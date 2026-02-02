@@ -142,32 +142,36 @@ export class EffectWindowEffect implements VFXEffect {
     private drawCyberBorder(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, time: number) {
         const borderWidth = this.settings.borderWidth as number;
         const hue = this.settings.hue as number;
+        const padding = 5; // A small, fixed padding to create the border area
 
         ctx.save();
         
+        // Draw the background for the border area
         ctx.fillStyle = `hsl(${hue}, 50%, 5%)`;
-        ctx.fillRect(x - borderWidth, y - borderWidth, w + borderWidth * 2, h + borderWidth * 2);
+        ctx.fillRect(x - padding, y - padding, w + padding * 2, h + padding * 2);
 
+        // Draw a thin, constant outline
         ctx.strokeStyle = `hsl(${hue}, 80%, 40%)`;
-        ctx.lineWidth = Math.max(1, borderWidth / 10);
-        ctx.strokeRect(x - borderWidth, y - borderWidth, w + borderWidth * 2, h + borderWidth * 2);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x - padding, y - padding, w + padding * 2, h + padding * 2);
 
-        const cornerSize = borderWidth * 1.5;
+        // Draw the decorative corners, which are controlled by `borderWidth`
+        const cornerSize = borderWidth; // Let the setting control the flourish size
         ctx.strokeStyle = `hsl(${hue}, 100%, 70%)`;
         ctx.lineWidth = Math.max(2, borderWidth / 5);
         ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
         ctx.shadowBlur = Math.max(5, borderWidth / 2);
         ctx.lineCap = 'round';
 
-
         const pulse = (Math.sin(time * 4) + 1) / 2;
         const animatedCornerSize = cornerSize * (0.8 + pulse * 0.2);
 
+        // Position corners relative to the new padded box
         const corners = [
-            [x - borderWidth, y - borderWidth],
-            [x + w + borderWidth, y - borderWidth],
-            [x + w + borderWidth, y + h + borderWidth],
-            [x - borderWidth, y + h + borderWidth],
+            [x - padding, y - padding],
+            [x + w + padding, y - padding],
+            [x + w + padding, y + h + padding],
+            [x - padding, y + h + padding],
         ];
         
         ctx.beginPath();
@@ -196,15 +200,7 @@ export class EffectWindowEffect implements VFXEffect {
         
         ctx.shadowBlur = 0;
 
-        ctx.font = '10px "Source Code Pro", monospace';
-        ctx.fillStyle = `hsla(${hue}, 80%, 60%, 0.6)`;
-        const glyphs = "01AbCdEfGHIjKLMnOpQRstUVwXyZ";
-        const glyphOffset = (time * 30) % 15;
-
-        for (let i = 0; i < (w + borderWidth*2) / 15; i++) {
-            ctx.fillText(glyphs[Math.floor(i + time*2) % glyphs.length], x - borderWidth + i * 15 + glyphOffset, y - borderWidth/2);
-            ctx.fillText(glyphs[Math.floor(i + time*2 + 10) % glyphs.length], x + w + borderWidth - (i * 15 + glyphOffset), y + h + borderWidth/2);
-        }
+        // Running letters removed.
 
         ctx.restore();
     }
