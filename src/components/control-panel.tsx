@@ -261,6 +261,23 @@ export function ControlPanel({
       );
     }
     if (typeof value === "number") {
+       if (key === 'zoom' && effectKey === 'drone-view') {
+        return (
+          <div key={key} className="space-y-2">
+            <Label htmlFor={key} className="capitalize text-xs">
+              Zoom ({value.toFixed(1)})
+            </Label>
+            <Slider
+              id={key}
+              min={1}
+              max={10}
+              step={0.1}
+              value={[value]}
+              onValueChange={([v]) => onSettingsChange({ [key]: v })}
+            />
+          </div>
+        );
+      }
        if (key === 'progressBarSkew' && effectKey === 'cyberdeck-startup') {
         return (
           <div key={key} className="space-y-2">

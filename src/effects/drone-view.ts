@@ -159,53 +159,76 @@ class PoliceCar {
     update(deltaTime: number, target: { x: number; y: number }, streets: { pos: number; width: number; isVertical: boolean }[]) {
         if (this.isStopped) return;
 
-        const stopDistance = 15;
-        const dx = target.x - this.x;
-        const dy = target.y - this.y;
-        if (Math.sqrt(dx * dx + dy * dy) < stopDistance) {
+        const stopDistance = 10;
+        if (Math.abs(this.x - target.x) < stopDistance && Math.abs(this.y - target.y) < stopDistance) {
             this.isStopped = true;
             return;
         }
-        
+
         let moveAmount = this.speed * deltaTime;
 
         if (this.currentStreet.isVertical) {
-            // Move vertically
-            if (Math.abs(dy) > moveAmount) {
-                this.y += Math.sign(dy) * moveAmount;
-            } else {
-                // Reached target Y alignment, find best horizontal street
-                let bestStreet = null;
-                let minDistance = Infinity;
-                for(const street of streets) {
-                    if (!street.isVertical) {
-                        const dist = Math.abs(street.pos - this.y);
-                        if (dist < minDistance) {
-                            minDistance = dist;
-                            bestStreet = street;
+            const dx = target.x - this.x;
+            const dy = target.y - this.y;
+
+            // If we are far from the target's X, we need to turn onto a horizontal street
+            if (Math.abs(dx) > this.currentStreet.width) {
+                // Find nearest horizontal street
+                let nearestHStreet: { pos: number, width: number, isVertical: boolean } | null = null;
+                let minDist = Infinity;
+                for (const s of streets) {
+                    if (!s.isVertical) {
+                        const dist = Math.abs(this.y - s.pos);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            nearestHStreet = s;
                         }
                     }
                 }
-                if (bestStreet) this.currentStreet = bestStreet;
+                
+                if (nearestHStreet) {
+                    // Move towards the intersection
+                    if (Math.abs(this.y - nearestHStreet.pos) > moveAmount) {
+                        this.y += Math.sign(nearestHStreet.pos - this.y) * moveAmount;
+                    } else {
+                        // Switch street
+                        this.currentStreet = nearestHStreet;
+                    }
+                }
+            } else {
+                // We are on the correct vertical column, move towards target Y
+                this.y += Math.sign(dy) * moveAmount;
             }
         } else { // On horizontal street
-            // Move horizontally
-            if (Math.abs(dx) > moveAmount) {
-                this.x += Math.sign(dx) * moveAmount;
+            const dx = target.x - this.x;
+            const dy = target.y - this.y;
+            
+            // If we are far from the target's Y, we need to turn onto a vertical street
+            if (Math.abs(dy) > this.currentStreet.width) {
+                // Find nearest vertical street
+                 let nearestVStreet: { pos: number, width: number, isVertical: boolean } | null = null;
+                 let minDist = Infinity;
+                 for (const s of streets) {
+                     if (s.isVertical) {
+                         const dist = Math.abs(this.x - s.pos);
+                         if (dist < minDist) {
+                             minDist = dist;
+                             nearestVStreet = s;
+                         }
+                     }
+                 }
+                if (nearestVStreet) {
+                     // Move towards the intersection
+                     if (Math.abs(this.x - nearestVStreet.pos) > moveAmount) {
+                         this.x += Math.sign(nearestVStreet.pos - this.x) * moveAmount;
+                     } else {
+                         // Switch street
+                         this.currentStreet = nearestVStreet;
+                     }
+                 }
             } else {
-                 // Reached target X alignment, find best vertical street
-                let bestStreet = null;
-                let minDistance = Infinity;
-                for(const street of streets) {
-                    if (street.isVertical) {
-                        const dist = Math.abs(street.pos - this.x);
-                        if (dist < minDistance) {
-                            minDistance = dist;
-                            bestStreet = street;
-                        }
-                    }
-                }
-                if (bestStreet) this.currentStreet = bestStreet;
+                // We are on the correct horizontal row, move towards target X
+                this.x += Math.sign(dx) * moveAmount;
             }
         }
     }
@@ -401,6 +424,9 @@ export class DroneViewEffect implements VFXEffect {
 
         if (needsReinit) {
             this.init(this.canvas, this.settings);
+            if (this.wasCapturing) {
+                this.spawnPoliceCars(4);
+            }
             return;
         }
         
@@ -601,9 +627,25 @@ export class DroneViewEffect implements VFXEffect {
         const ca = this.settings.chromaticAberration as number;
         if (ca > 0) {
             ctx.clearRect(0, 0, this.width, this.height);
+            // Use 'lighter' to blend channels additively
             ctx.globalCompositeOperation = 'lighter';
-            ctx.drawImage(this.bufferCanvas, ca, 0);
-            ctx.drawImage(this.bufferCanvas, -ca, 0);
+            
+            // Red channel (offset left)
+            this.channelCtx.clearRect(0, 0, this.width, this.height);
+            this.channelCtx.drawImage(this.bufferCanvas, 0, 0);
+            this.channelCtx.globalCompositeOperation = 'multiply';
+            this.channelCtx.fillStyle = 'rgb(255,0,0)';
+            this.channelCtx.fillRect(0, 0, this.width, this.height);
+            ctx.drawImage(this.channelCanvas, -ca, 0);
+            
+            // Green/Blue (Cyan) channel (offset right)
+            this.channelCtx.clearRect(0, 0, this.width, this.height);
+            this.channelCtx.drawImage(this.bufferCanvas, 0, 0);
+            this.channelCtx.globalCompositeOperation = 'multiply';
+            this.channelCtx.fillStyle = 'rgb(0,255,255)';
+            this.channelCtx.fillRect(0, 0, this.width, this.height);
+            ctx.drawImage(this.channelCanvas, ca, 0);
+
             ctx.globalCompositeOperation = 'source-over';
         } else {
             ctx.clearRect(0, 0, this.width, this.height);
