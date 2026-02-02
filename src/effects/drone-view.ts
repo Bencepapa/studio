@@ -158,11 +158,7 @@ class PoliceCar {
         if (this.isStopped) return;
 
         const stopDistance = 10;
-        const targetXWithSway = target.x;
-        const targetYWithSway = target.y;
-
-        // Use a larger stop distance if the car is moving fast to prevent overshooting
-        if (Math.abs(this.x - targetXWithSway) < stopDistance && Math.abs(this.y - targetYWithSway) < stopDistance) {
+        if (Math.abs(this.x - target.x) < stopDistance && Math.abs(this.y - target.y) < stopDistance) {
             this.isStopped = true;
             return;
         }
@@ -170,8 +166,8 @@ class PoliceCar {
         let moveAmount = this.speed * deltaTime;
 
         if (this.currentStreet.isVertical) {
-            const dx = targetXWithSway - this.x;
-            const dy = targetYWithSway - this.y;
+            const dx = target.x - this.x;
+            const dy = target.y - this.y;
 
             if (Math.abs(dx) > this.currentStreet.width) {
                 let nearestHStreet: { pos: number, width: number, isVertical: boolean } | null = null;
@@ -202,8 +198,8 @@ class PoliceCar {
                 this.y += Math.sign(dy) * moveAmount;
             }
         } else { // On horizontal street
-            const dx = targetXWithSway - this.x;
-            const dy = targetYWithSway - this.y;
+            const dx = target.x - this.x;
+            const dy = target.y - this.y;
             
             if (Math.abs(dy) > this.currentStreet.width) {
                  let nearestVStreet: { pos: number, width: number, isVertical: boolean } | null = null;
@@ -256,8 +252,8 @@ class PoliceCar {
         ctx.save();
         ctx.shadowBlur = 15;
 
-        // Horizontal Car
-        if (this.size.w > this.size.h) {
+        // Corrected logic: Use this.currentStreet.isVertical
+        if (!this.currentStreet.isVertical) { // Horizontal Car
             const yPos = this.y + (this.size.h - lightBarHeight) / 2;
             
             // Left light
@@ -293,8 +289,6 @@ export class DroneViewEffect implements VFXEffect {
     private canvas: HTMLCanvasElement | null = null;
     private bufferCanvas: HTMLCanvasElement;
     private bufferCtx: CanvasRenderingContext2D;
-    private channelCanvas: HTMLCanvasElement;
-    private channelCtx: CanvasRenderingContext2D;
     
     private width = 0;
     private height = 0;
@@ -333,8 +327,6 @@ export class DroneViewEffect implements VFXEffect {
     constructor() {
         this.bufferCanvas = document.createElement('canvas');
         this.bufferCtx = this.bufferCanvas.getContext('2d')!;
-        this.channelCanvas = document.createElement('canvas');
-        this.channelCtx = this.channelCanvas.getContext('2d')!;
     }
 
     init(canvas: HTMLCanvasElement, settings: VFXSettings) {
@@ -344,8 +336,6 @@ export class DroneViewEffect implements VFXEffect {
         this.height = rect.height;
         this.bufferCanvas.width = this.width;
         this.bufferCanvas.height = this.height;
-        this.channelCanvas.width = this.width;
-        this.channelCanvas.height = this.height;
 
         if (this.width === 0 || this.height === 0) return;
         this.settings = { ...DroneViewEffect.defaultSettings, ...settings };
@@ -461,7 +451,7 @@ export class DroneViewEffect implements VFXEffect {
             return;
         }
         
-        const { capture } = this.settings;
+        const { capture, cameraSway, zoom } = this.settings;
 
         if (capture && !this.wasCapturing) {
             // Just switched ON
@@ -486,8 +476,25 @@ export class DroneViewEffect implements VFXEffect {
         const generationWidth = this.width + SWAY_PADDING * 2;
         const generationHeight = this.height + SWAY_PADDING * 2;
         this.vehicles.forEach(v => v.update(this.currentTime, { width: generationWidth, height: generationHeight }));
+        
         if (this.capturePosition) {
-            this.policeCars.forEach(p => p.update(deltaTime, this.capturePosition!, this.streets));
+            // Convert screen-space capturePosition to world-space for police car AI
+            const sway = cameraSway as number;
+            const z = zoom as number;
+            
+            const swayX = (sway > 0) ? Math.sin(this.currentTime * 0.3) * sway * 0.7 + Math.sin(this.currentTime * 0.7) * sway * 0.3 : 0;
+            const swayY = (sway > 0) ? Math.sin(this.currentTime * 0.4) * sway * 0.7 + Math.sin(this.currentTime * 0.8) * sway * 0.3 : 0;
+            
+            // Inverse transform: Screen -> Sway -> Zoom
+            const targetInSwaySpaceX = this.capturePosition.x + swayX;
+            const targetInSwaySpaceY = this.capturePosition.y + swayY;
+            
+            const targetInWorldX = (targetInSwaySpaceX - this.width / 2) / z + this.width / 2;
+            const targetInWorldY = (targetInSwaySpaceY - this.height / 2) / z + this.height / 2;
+
+            const worldTarget = { x: targetInWorldX, y: targetInWorldY };
+
+            this.policeCars.forEach(p => p.update(deltaTime, worldTarget, this.streets));
         }
     }
 
@@ -680,15 +687,23 @@ export class DroneViewEffect implements VFXEffect {
             // Use 'lighter' to blend channels additively
             ctx.globalCompositeOperation = 'lighter';
             
-            // Draw main image slightly dimmed
-            ctx.globalAlpha = 0.8;
-            ctx.drawImage(this.bufferCanvas, 0, 0);
-            ctx.globalAlpha = 1.0;
-            
-            // Draw red channel offset
+            // Red channel
+            ctx.save();
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.fillStyle = 'red';
+            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.globalCompositeOperation = 'destination-in';
             ctx.drawImage(this.bufferCanvas, -ca, 0);
-            // Draw cyan channel offset
+            ctx.restore();
+
+            // Cyan channel
+            ctx.save();
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.fillStyle = 'cyan';
+            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.globalCompositeOperation = 'destination-in';
             ctx.drawImage(this.bufferCanvas, ca, 0);
+            ctx.restore();
             
             ctx.globalCompositeOperation = 'source-over';
         } else {
