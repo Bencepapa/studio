@@ -1,7 +1,16 @@
 
 'use client';
 
+import { lerp, mapRange } from './utils';
 import type { VFXEffect, VFXEffectClass, VFXSettings } from './types';
+
+interface PropertyAnimation {
+    property: string;
+    from: number;
+    to: number;
+    startTime?: number;
+    endTime?: number;
+}
 
 interface CompositorLayer {
     id: string;
@@ -10,7 +19,8 @@ interface CompositorLayer {
     end: number;
     rect: [number, number, number, number]; // x, y, w, h in percentage
     settings: VFXSettings;
-    useOwnTimeline?: boolean; // If true, use the effect's own looping; if false, use main timeline.
+    useOwnTimeline?: boolean;
+    animations?: PropertyAnimation[];
 }
 
 interface ActiveInstance {
@@ -18,6 +28,7 @@ interface ActiveInstance {
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
     layer: CompositorLayer;
+    layerOpacity: number;
 }
 
 const defaultScript = `[
@@ -27,7 +38,11 @@ const defaultScript = `[
         "start": 0,
         "end": 30,
         "rect": [0, 0, 100, 100],
-        "settings": { "hue": 128, "fallSpeed": 1.5 }
+        "settings": { "fallSpeed": 1.5 },
+        "animations": [
+            { "property": "hue", "from": 128, "to": 289, "startTime": 0, "endTime": 15 },
+            { "property": "hue", "from": 289, "to": 128, "startTime": 15, "endTime": 30 }
+        ]
     },
     {
         "id": "alert1",
@@ -36,7 +51,10 @@ const defaultScript = `[
         "end": 8,
         "useOwnTimeline": true,
         "rect": [65, 5, 30, 20],
-        "settings": { "hue": 0, "warningMessage": "BREACH" }
+        "settings": { "hue": 0, "warningMessage": "BREACH" },
+        "animations": [
+            { "property": "layerOpacity", "from": 1, "to": 0, "startTime": 7, "endTime": 8 }
+        ]
     },
     {
         "id": "shield",
@@ -45,7 +63,10 @@ const defaultScript = `[
         "end": 15,
         "useOwnTimeline": true,
         "rect": [10, 20, 80, 60],
-        "settings": { "hue": 200, "hexSize": 30, "rippleSpeed": 1 }
+        "settings": { "hue": 200, "hexSize": 30 },
+        "animations": [
+            { "property": "rippleSpeed", "from": 1, "to": 5 }
+        ]
     },
     {
         "id": "message",
@@ -54,7 +75,11 @@ const defaultScript = `[
         "end": 25,
         "useOwnTimeline": true,
         "rect": [15, 15, 70, 70],
-        "settings": { "sender": "ghost@system", "subject": "Payload Delivered" }
+        "settings": { "sender": "ghost@system", "subject": "Payload Delivered" },
+        "animations": [
+             { "property": "layerOpacity", "from": 0, "to": 1, "startTime": 12, "endTime": 13 },
+             { "property": "layerOpacity", "from": 1, "to": 0, "startTime": 24, "endTime": 25 }
+        ]
     }
 ]`;
 
@@ -79,7 +104,6 @@ export class CompositorEffect implements VFXEffect {
         try {
             const parsed = JSON.parse(script);
             if (Array.isArray(parsed)) {
-                // Basic validation can be added here
                 return parsed;
             }
         } catch (e) {
@@ -104,8 +128,7 @@ export class CompositorEffect implements VFXEffect {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     if (ctx) {
-                        this.activeInstances.set(layer.id, { instance, canvas, ctx, layer });
-                        // Initial setup of canvas size
+                        this.activeInstances.set(layer.id, { instance, canvas, ctx, layer, layerOpacity: 1.0 });
                         this.resizeInstanceCanvas(this.activeInstances.get(layer.id)!);
                         instance.init(canvas, layer.settings);
                     }
@@ -122,20 +145,39 @@ export class CompositorEffect implements VFXEffect {
         this.activeInstances.forEach(activeInstance => {
             const { instance, layer } = activeInstance;
             
-            // Check if rect has changed, if so, resize canvas
             if (
                 layer.rect[2] / 100 * this.width !== activeInstance.canvas.width ||
                 layer.rect[3] / 100 * this.height !== activeInstance.canvas.height
             ) {
                  this.resizeInstanceCanvas(activeInstance);
-                 // Re-init might be too harsh, but it's the safest way to handle size changes
                  instance.init(activeInstance.canvas, layer.settings);
             }
 
-            // useOwnTimeline allows the effect to loop naturally using its own internal logic.
-            // Otherwise, we pin it to the compositor's timeline segment.
+            const frameSettings = { ...layer.settings };
+            let layerOpacity = 1.0;
+
+            if (layer.animations) {
+                layer.animations.forEach(anim => {
+                    const animStartTime = anim.startTime !== undefined ? anim.startTime : layer.start;
+                    const animEndTime = anim.endTime !== undefined ? anim.endTime : layer.end;
+    
+                    if (time >= animStartTime && time <= animEndTime) {
+                        const progress = mapRange(time, animStartTime, animEndTime, 0, 1);
+                        const value = lerp(anim.from, anim.to, progress);
+    
+                        if (anim.property === 'layerOpacity') {
+                            layerOpacity = value;
+                        } else {
+                            frameSettings[anim.property] = value;
+                        }
+                    }
+                });
+            }
+            
+            activeInstance.layerOpacity = layerOpacity;
+
             const effectTime = layer.useOwnTimeline ? time : time - layer.start;
-            instance.update(effectTime, deltaTime, layer.settings);
+            instance.update(effectTime, deltaTime, frameSettings);
         });
     }
 
@@ -152,7 +194,6 @@ export class CompositorEffect implements VFXEffect {
             ctx.resetTransform();
             ctx.scale(dpr, dpr);
             
-            // Mock getBoundingClientRect
             canvas.getBoundingClientRect = () => ({
                 width: w, height: h, top: 0, left: 0, right: w, bottom: h, x: 0, y: 0,
                 toJSON: () => JSON.stringify({width: w, height: h}),
@@ -185,7 +226,6 @@ export class CompositorEffect implements VFXEffect {
         if (script !== this.lastScript) {
             this.lastScript = script;
             this.parsedScript = this.parseScript(script);
-            // Destroy all and let the update loop recreate what's needed
             this.activeInstances.forEach(({ instance }) => instance.destroy());
             this.activeInstances.clear();
         }
@@ -198,7 +238,6 @@ export class CompositorEffect implements VFXEffect {
         if (this.width !== rect.width || this.height !== rect.height) {
             this.width = rect.width;
             this.height = rect.height;
-            // Force re-init of all instances on main canvas resize
             this.activeInstances.forEach(inst => this.resizeInstanceCanvas(inst));
         }
 
@@ -208,18 +247,20 @@ export class CompositorEffect implements VFXEffect {
 
     render(ctx: CanvasRenderingContext2D) {
          this.activeInstances.forEach(activeInstance => {
-            const { instance, canvas, ctx: instanceCtx, layer } = activeInstance;
+            const { instance, canvas, ctx: instanceCtx, layer, layerOpacity } = activeInstance;
             const w = (layer.rect[2] / 100) * this.width;
             const h = (layer.rect[3] / 100) * this.height;
 
-            // Clear and render the inner effect
             instanceCtx.clearRect(0, 0, w, h);
             instance.render(instanceCtx);
 
-            // Draw the result to the main canvas
             const x = (layer.rect[0] / 100) * this.width;
             const y = (layer.rect[1] / 100) * this.height;
+            
+            ctx.save();
+            ctx.globalAlpha = layerOpacity !== undefined ? layerOpacity : 1.0;
             ctx.drawImage(canvas, x, y, w, h);
+            ctx.restore();
         });
     }
 
