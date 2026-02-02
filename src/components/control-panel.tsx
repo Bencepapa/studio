@@ -353,9 +353,10 @@ export function ControlPanel({
       const isHeadlightLightness = key === 'headlightLightness';
       const isCameraSway = key === 'cameraSway';
       const isWindowControl = key.startsWith('window');
+      const isBorderWidth = key === 'borderWidth';
 
 
-      const min = isSpeed ? -2 : 0;
+      const min = isSpeed ? -2 : (isBorderWidth ? 1 : 0);
       
       let max;
       if (isCount) {
@@ -368,6 +369,8 @@ export function ControlPanel({
         max = 100;
       } else if (isCornerRadius || isMapLightness || isCameraSway) {
         max = 50;
+      } else if (isBorderWidth) {
+        max = 30;
       } else if (isDisplayDuration || isMapBlur) {
         max = 10;
       }
@@ -375,12 +378,12 @@ export function ControlPanel({
         max = 200;
       }
       
-      const step = isSpeed || isDisplayDuration || isMapBlur ? 0.1 : (isCount || isRibbonWidth || isSpeechTarget || isCornerRadius || isMapLightness || isHeadlightLightness || isCameraSway || isWindowControl ? 1 : 0.1);
+      const step = isSpeed || isDisplayDuration || isMapBlur ? 0.1 : (isCount || isRibbonWidth || isSpeechTarget || isCornerRadius || isMapLightness || isHeadlightLightness || isCameraSway || isWindowControl || isBorderWidth ? 1 : 0.1);
       
       return (
         <div key={key} className="space-y-2">
           <Label htmlFor={key} className="capitalize text-xs">
-            {label} ({value.toFixed(isSpeed || isDisplayDuration || isMapBlur ? (isSpeed ? 2: 1) : (isCount || isRibbonWidth || isSpeechTarget || isCornerRadius || isMapLightness || isHeadlightLightness || isCameraSway || isWindowControl ? 0 : 1))})
+            {label} ({value.toFixed(isSpeed || isDisplayDuration || isMapBlur ? (isSpeed ? 2: 1) : (isCount || isRibbonWidth || isSpeechTarget || isCornerRadius || isMapLightness || isHeadlightLightness || isCameraSway || isWindowControl || isBorderWidth ? 0 : 1))})
           </Label>
           <Slider
             id={key}

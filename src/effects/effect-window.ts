@@ -40,6 +40,12 @@ export class EffectWindowEffect implements VFXEffect {
             this.innerEffectInstance.destroy();
         }
 
+        if (!this.availableEffects || Object.keys(this.availableEffects).length === 0) {
+            this.innerEffectInstance = null;
+            this.innerEffectKey = '';
+            return;
+        }
+
         const EffectClass = this.availableEffects[key];
         if (EffectClass && key !== 'effect-window') { // Prevent recursion
             this.innerEffectKey = key;
@@ -64,28 +70,27 @@ export class EffectWindowEffect implements VFXEffect {
     }
     
     private updateSettings(newSettings: VFXSettings) {
-        const oldSettings = { ...this.settings };
+        if (newSettings.availableEffects) {
+            this.availableEffects = newSettings.availableEffects;
+        }
+
+        if (newSettings.innerEffect !== this.innerEffectKey) {
+            this.setupInnerEffect(newSettings.innerEffect);
+        }
+    
+        const sizeChanged = this.settings.windowWidth !== newSettings.windowWidth || 
+                            this.settings.windowHeight !== newSettings.windowHeight;
+    
         this.settings = { ...EffectWindowEffect.defaultSettings, ...newSettings };
-
-        if (this.settings.availableEffects && Object.keys(this.availableEffects).length === 0) {
-            this.availableEffects = this.settings.availableEffects;
-        }
-
-        if (this.settings.innerEffect !== this.innerEffectKey && this.availableEffects) {
-            this.setupInnerEffect(this.settings.innerEffect);
-        }
-
-        const sizeChanged = oldSettings.windowWidth !== this.settings.windowWidth || oldSettings.windowHeight !== this.settings.windowHeight;
-        const dimensionsInvalid = this.innerCanvas.width === 0 || this.innerCanvas.height === 0;
-
-        if ((sizeChanged || dimensionsInvalid) && this.innerEffectKey) {
-             const w = (this.settings.windowWidth / 100) * this.width;
-             const h = (this.settings.windowHeight / 100) * this.height;
-             if (w > 0 && h > 0) {
-                 this.innerCanvas.width = w;
-                 this.innerCanvas.height = h;
-                 this.setupInnerEffect(this.innerEffectKey);
-             }
+    
+        if (sizeChanged && this.innerEffectInstance) {
+            const w = (this.settings.windowWidth / 100) * this.width;
+            const h = (this.settings.windowHeight / 100) * this.height;
+            if(w > 0 && h > 0 && (this.innerCanvas.width !== w || this.innerCanvas.height !== h)) {
+                this.innerCanvas.width = w;
+                this.innerCanvas.height = h;
+                this.innerEffectInstance.init(this.innerCanvas, this.availableEffects[this.innerEffectKey].defaultSettings);
+            }
         }
     }
 
@@ -127,14 +132,16 @@ export class EffectWindowEffect implements VFXEffect {
         ctx.fillRect(x - borderWidth, y - borderWidth, w + borderWidth * 2, h + borderWidth * 2);
 
         ctx.strokeStyle = `hsl(${hue}, 80%, 40%)`;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = Math.max(1, borderWidth / 10);
         ctx.strokeRect(x - borderWidth, y - borderWidth, w + borderWidth * 2, h + borderWidth * 2);
 
         const cornerSize = borderWidth * 1.5;
         ctx.strokeStyle = `hsl(${hue}, 100%, 70%)`;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = Math.max(2, borderWidth / 5);
         ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
-        ctx.shadowBlur = 5;
+        ctx.shadowBlur = Math.max(5, borderWidth / 2);
+        ctx.lineCap = 'round';
+
 
         const pulse = (Math.sin(time * 4) + 1) / 2;
         const animatedCornerSize = cornerSize * (0.8 + pulse * 0.2);
