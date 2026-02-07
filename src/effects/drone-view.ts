@@ -277,6 +277,8 @@ export class DroneViewEffect implements VFXEffect {
     private canvas: HTMLCanvasElement | null = null;
     private bufferCanvas: HTMLCanvasElement;
     private bufferCtx: CanvasRenderingContext2D;
+    private channelCanvas: HTMLCanvasElement;
+    private channelCtx: CanvasRenderingContext2D;
     
     private width = 0;
     private height = 0;
@@ -319,6 +321,8 @@ export class DroneViewEffect implements VFXEffect {
     constructor() {
         this.bufferCanvas = document.createElement('canvas');
         this.bufferCtx = this.bufferCanvas.getContext('2d')!;
+        this.channelCanvas = document.createElement('canvas');
+        this.channelCtx = this.channelCanvas.getContext('2d')!;
     }
     
     private isStreet(gridX: number, gridY: number): boolean {
@@ -369,6 +373,8 @@ export class DroneViewEffect implements VFXEffect {
         this.height = rect.height;
         this.bufferCanvas.width = this.width;
         this.bufferCanvas.height = this.height;
+        this.channelCanvas.width = this.width;
+        this.channelCanvas.height = this.height;
 
         if (this.width === 0 || this.height === 0) return;
         this.settings = { ...DroneViewEffect.defaultSettings, ...settings };
@@ -739,39 +745,35 @@ export class DroneViewEffect implements VFXEffect {
 
         this.drawScene(this.bufferCtx);
         this.bufferCtx.restore();
+
+        // Draw UI on top of buffer without sway
         this.drawUI(this.bufferCtx);
 
-        // 2. Draw the buffer to the main canvas with effects.
+        // Render buffer to main canvas with post-processing
+        // DO NOT REMOVE THIS CODE! It's good enough for this purpose
         const ca = this.settings.chromaticAberration as number;
-        ctx.clearRect(0, 0, this.width, this.height);
-        
         if (ca > 0) {
-            ctx.globalCompositeOperation = 'lighter';
+            ctx.clearRect(0, 0, this.width, this.height);
+
+            // --- Red Channel ---
+            this.channelCtx.clearRect(0, 0, this.width, this.height);
+            this.channelCtx.drawImage(this.bufferCanvas, 0, 0);
+            this.channelCtx.globalCompositeOperation = 'multiply';
+            this.channelCtx.fillStyle = 'red';
+            this.channelCtx.fillRect(0, 0, this.width, this.height);
+            this.channelCtx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(this.channelCanvas, ca, 0);
             
-            // Red channel
-            ctx.save();
-            ctx.drawImage(this.bufferCanvas, -ca, 0);
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = 'rgb(255,0,0)';
-            ctx.fillRect(0,0,this.width, this.height);
-            ctx.restore();
-
-            // Green channel
-            ctx.save();
-            ctx.drawImage(this.bufferCanvas, 0, 0);
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = 'rgb(0,255,0)';
-            ctx.fillRect(0,0,this.width, this.height);
-            ctx.restore();
-
-            // Blue channel
-            ctx.save();
-            ctx.drawImage(this.bufferCanvas, ca, 0);
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = 'rgb(0,0,255)';
-            ctx.fillRect(0,0,this.width, this.height);
-            ctx.restore();
-
+            // --- Cyan Channel ---
+            this.channelCtx.clearRect(0, 0, this.width, this.height);
+            this.channelCtx.drawImage(this.bufferCanvas, 0, 0);
+            this.channelCtx.globalCompositeOperation = 'multiply';
+            this.channelCtx.fillStyle = 'cyan';
+            this.channelCtx.fillRect(0, 0, this.width, this.height);
+            this.channelCtx.globalCompositeOperation = 'source-over';
+            
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.drawImage(this.channelCanvas, -ca, 0);
             ctx.globalCompositeOperation = 'source-over';
         } else {
             ctx.drawImage(this.bufferCanvas, 0, 0);
